@@ -1,0 +1,62 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>Semantic Business Map</h1>
+        <p class="lead">Visualizing {{ companies.count }} companies based on website content semantics.</p>
+        <div class="card">
+            <div class="card-body">
+                <canvas id="semanticMap" height="600"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('semanticMap').getContext('2d');
+
+        fetch('/api/map-data/')
+            .then(response => response.json())
+            .then(data => {
+                const companies = data.companies;
+
+                // Prepare datasets based on industry (if available) or generic
+                const datasets = [{
+                    label: 'Companies',
+                    data: companies.map(c => ({ x: c.x, y: c.y, company: c })),
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    pointRadius: 6,
+                    pointHoverRadius: 10
+                }];
+
+                new Chart(ctx, {
+                    type: 'scatter',
+                    data: { datasets: datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        const company = context.raw.company;
+                                        return `${company.name} (${company.industry})`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { type: 'linear', position: 'bottom', title: { display: true, text: 'PCA Component 1' } },
+                            y: { type: 'linear', position: 'left', title: { display: true, text: 'PCA Component 2' } }
+                        }
+                    }
+                });
+            });
+    });
+</script>
+{% endblock %}

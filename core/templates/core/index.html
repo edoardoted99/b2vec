@@ -1,0 +1,78 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Dashboard</h1>
+        <div class="card-group">
+            <div class="card text-white bg-primary mb-3" style="max-width: 18rem;">
+                <div class="card-header">Companies</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ total_companies }}</h5>
+                </div>
+            </div>
+            <div class="card text-white bg-warning mb-3" style="max-width: 18rem;">
+                <div class="card-header">Scraped</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ scraped_count }}</h5>
+                </div>
+            </div>
+            <div class="card text-white bg-success mb-3" style="max-width: 18rem;">
+                <div class="card-header">Embedded</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ embedded_count }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">Add Companies</div>
+            <div class="card-body">
+                <form action="{% url 'add_company' %}" method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="urls" class="form-label">URLs (one per line)</label>
+                        <textarea class="form-control" id="urls" name="urls" rows="5"
+                            placeholder="example.com&#10;another-company.it"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add URLs</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">Actions</div>
+            <div class="card-body">
+                <a href="{% url 'trigger_scraping' %}" class="btn btn-warning w-100 mb-2">Run Scraper (All)</a>
+                <a href="{% url 'trigger_embedding' %}" class="btn btn-success w-100">Train Model & Generate
+                    Embeddings</a>
+                <small class="text-muted d-block mt-2">Note: Training requires at least 2 scraped companies.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Recent Companies</div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for company in companies|slice:":10" %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="{{ company.url }}" target="_blank">{{ company.name }}</a>
+                        <span>
+                            {% if company.scraped_data.exists %}<span class="badge bg-warning text-dark">S</span>{% endif %}
+                            {% if company.embedding %}<span class="badge bg-success">E</span>{% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <a href="/admin/core/company/" class="btn btn-link mt-2">View all in Admin</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
