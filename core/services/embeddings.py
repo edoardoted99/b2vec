@@ -1,74 +1,70 @@
-import json
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.decomposition import TruncatedSVD, PCA
-from core.models import Company, ScrapedData, CompanyEmbedding
-from django.utils import timezone
+from django.conf import settings
 
-ITALIAN_STOPWORDS = [
-    'di', 'a', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra', 'il', 'lo', 'la', 'i', 'gli', 'le',
-    'un', 'uno', 'una', 'e', 'ed', 'o', 'ma', 'se', 'che', 'non', 'si', 'ci', 'vi', 'li', 'ne',
-    'chi', 'cui', 'quale', 'dove', 'come', 'quando', 'perché', 'più', 'meno', 'bene', 'male', 'siamo',
-    'sei', 'è', 'sono', 'stato', 'stata', 'stati', 'state', 'hanno', 'abbiamo', 'avete', 'srl', 'spa',
-    'inc', 'co', 'azienda', 'servizi', 'prodotti', 'contatti', 'chi', 'siamo', 'home', 'page', 'cookie',
-    'policy', 'privacy', 'rights', 'reserved', 'copyright', 'iva', 'piva', 'tel', 'fax', 'email', 'info'
-]
+_model = None
 
-def generate_embeddings():
-    """
-    Generates embeddings for all scraped companies using TF-IDF + SVD (LSA).
-    """
-    scraped_items = ScrapedData.objects.select_related('company').all()
-    if not scraped_items.exists():
-        return False, "No data to process"
 
-    documents = []
-    company_ids = []
-    
-    for item in scraped_items:
-        if item.text_content and len(item.text_content) > 50:
-            documents.append(item.text_content)
-            company_ids.append(item.company.id)
+def _get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer(settings.SBERT_MODEL_NAME)
+    return _model
 
-    if len(documents) < 2:
-        return False, "Not enough documents to build a model (need at least 2)"
 
-    # 1. TF-IDF Vectorization
-    vectorizer = TfidfVectorizer(
-        max_features=2000, 
-        stop_words=ITALIAN_STOPWORDS,
-        min_df=1,    # Allow words that appear in only 1 doc for now (small corpus)
-        max_df=0.95  # Ignore common words
+def chunk_text(text, chunk_size=500, overlap=100):
+    """Split text into overlapping chunks of ~chunk_size characters."""
+    if len(text) <= chunk_size:
+        return [text]
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start += chunk_size - overlap
+    return chunks
+
+
+def embed_text(text):
+    """Embed a single text, chunking and mean-pooling if needed. Returns np.ndarray(384,)."""
+    model = _get_model()
+    chunks = chunk_text(text)
+    embeddings = model.encode(chunks, show_progress_bar=False)
+    return embeddings.mean(axis=0)
+
+
+def embed_texts_batch(texts, batch_size=256):
+    """Embed multiple texts. Returns np.ndarray(n, 384)."""
+    model = _get_model()
+    all_vectors = []
+    for text in texts:
+        chunks = chunk_text(text)
+        chunk_embeddings = model.encode(chunks, show_progress_bar=False)
+        all_vectors.append(chunk_embeddings.mean(axis=0))
+    return np.array(all_vectors)
+
+
+def compute_umap_projection(vectors):
+    """Reduce vectors to 2D with UMAP. Returns np.ndarray(n, 2)."""
+    import umap
+    n_neighbors = min(15, len(vectors) - 1)
+    reducer = umap.UMAP(
+        n_components=2,
+        n_neighbors=max(2, n_neighbors),
+        min_dist=0.1,
+        metric='cosine',
+        random_state=42,
     )
-    X_tfidf = vectorizer.fit_transform(documents)
+    return reducer.fit_transform(vectors)
 
-    # 2. Dimensionality Reduction (LSA) -> Dense Embeddings (e.g., 50 dims)
-    n_components = min(50, len(documents) - 1)
-    if n_components < 2:
-        n_components = 2 # fallback
-        
-    svd = TruncatedSVD(n_components=n_components, random_state=42)
-    X_dense = svd.fit_transform(X_tfidf)
 
-    # 3. Visualization Coordinates (PCA -> 2D)
-    # We can run PCA on the dense vectors
-    pca = PCA(n_components=2, random_state=42)
-    coords = pca.fit_transform(X_dense)
-
-    # 4. Save to DB
-    for i, company_id in enumerate(company_ids):
-        company = Company.objects.get(id=company_id)
-        vector_list = X_dense[i].tolist()
-        
-        CompanyEmbedding.objects.update_or_create(
-            company=company,
-            defaults={
-                'vector': vector_list,
-                'embedding_method': 'tfidf_svd',
-                'pca_x': coords[i][0],
-                'pca_y': coords[i][1],
-                'created_at': timezone.now()
-            }
-        )
-        
-    return True, f"Processed {len(documents)} companies."
+def compute_hdbscan_clusters(vectors):
+    """Cluster vectors with HDBSCAN. Returns np.ndarray(n,) of labels (-1 = noise)."""
+    import hdbscan
+    clusterer = hdbscan.HDBSCAN(
+        min_cluster_size=5,
+        min_samples=3,
+        metric='euclidean',
+    )
+    clusterer.fit(vectors)
+    return clusterer.labels_

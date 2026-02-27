@@ -1,56 +1,67 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h1>Dashboard</h1>
-        <div class="card-group">
-            <div class="card text-white bg-primary mb-3" style="max-width: 18rem;">
-                <div class="card-header">Companies</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ total_companies }}</h5>
-                </div>
+<h2 class="mt-3 mb-4">Dashboard</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body">
+                <h6 class="card-title">Companies</h6>
+                <h2 class="mb-0">{{ total_companies }}</h2>
             </div>
-            <div class="card text-white bg-warning mb-3" style="max-width: 18rem;">
-                <div class="card-header">Scraped</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ scraped_count }}</h5>
-                </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card text-white bg-warning h-100">
+            <div class="card-body">
+                <h6 class="card-title">Scraped</h6>
+                <h2 class="mb-0">{{ scraped_count }}</h2>
             </div>
-            <div class="card text-white bg-success mb-3" style="max-width: 18rem;">
-                <div class="card-header">Embedded</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ embedded_count }}</h5>
-                </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body">
+                <h6 class="card-title">Embedded</h6>
+                <h2 class="mb-0">{{ embedded_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card text-dark bg-info h-100">
+            <div class="card-body">
+                <h6 class="card-title">In Progress</h6>
+                <h2 class="mb-0">{{ in_progress }}</h2>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
+<div class="row g-4">
     <div class="col-md-6">
         <div class="card mb-4">
-            <div class="card-header">Add Companies</div>
+            <div class="card-header">Scrape Companies</div>
             <div class="card-body">
-                <form action="{% url 'add_company' %}" method="post">
+                <form action="{% url 'trigger_scraping' %}" method="post">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="urls" class="form-label">URLs (one per line)</label>
-                        <textarea class="form-control" id="urls" name="urls" rows="5"
-                            placeholder="example.com&#10;another-company.it"></textarea>
+                    <div class="input-group">
+                        <input type="number" class="form-control" name="limit" value="500" min="1" max="5000" placeholder="Limit">
+                        <button type="submit" class="btn btn-warning">Run Scraper</button>
                     </div>
-                    <button type="submit" class="btn btn-primary">Add URLs</button>
+                    <small class="text-muted">Dispatches Celery tasks for pending companies.</small>
                 </form>
             </div>
         </div>
 
         <div class="card mb-4">
-            <div class="card-header">Actions</div>
+            <div class="card-header">Generate Embeddings</div>
             <div class="card-body">
-                <a href="{% url 'trigger_scraping' %}" class="btn btn-warning w-100 mb-2">Run Scraper (All)</a>
-                <a href="{% url 'trigger_embedding' %}" class="btn btn-success w-100">Train Model & Generate
-                    Embeddings</a>
-                <small class="text-muted d-block mt-2">Note: Training requires at least 2 scraped companies.</small>
+                <form action="{% url 'trigger_embedding' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success w-100">Generate Embeddings + Projections</button>
+                    <small class="text-muted d-block mt-2">Runs SBERT encoding, UMAP projection, and HDBSCAN clustering via Celery.</small>
+                </form>
             </div>
         </div>
     </div>
@@ -58,19 +69,22 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">Recent Companies</div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
-                    {% for company in companies|slice:":10" %}
+                    {% for company in recent_companies %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <a href="{{ company.url }}" target="_blank">{{ company.name }}</a>
-                        <span>
-                            {% if company.scraped_data.exists %}<span class="badge bg-warning text-dark">S</span>{% endif %}
-                            {% if company.embedding %}<span class="badge bg-success">E</span>{% endif %}
+                        <div>
+                            <strong>{{ company.name }}</strong>
+                            {% if company.industry %}<br><small class="text-muted">{{ company.industry }}</small>{% endif %}
+                        </div>
+                        <span class="badge {% if company.scrape_status == 'success' %}bg-success{% elif company.scrape_status == 'error' %}bg-danger{% elif company.scrape_status == 'in_progress' %}bg-info{% else %}bg-secondary{% endif %}">
+                            {{ company.scrape_status }}
                         </span>
                     </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted">No companies yet.</li>
                     {% endfor %}
                 </ul>
-                <a href="/admin/core/company/" class="btn btn-link mt-2">View all in Admin</a>
             </div>
         </div>
     </div>

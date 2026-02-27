@@ -1,0 +1,101 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row mt-3">
+    <div class="col-lg-8 mx-auto">
+        <h2 class="mb-4">Semantic Search</h2>
+
+        <form id="search-form" class="mb-4">
+            <div class="input-group input-group-lg">
+                <input type="text" id="search-input" class="form-control" placeholder="e.g. logistica, software development, consulenza aziendale..." autofocus>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+
+        <div id="results-container" style="display:none;">
+            <h5 id="results-header" class="mb-3"></h5>
+            <div id="results-list"></div>
+        </div>
+
+        <div id="loading" style="display:none;" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Encoding query and searching...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('search-form');
+    const input = document.getElementById('search-input');
+    const resultsContainer = document.getElementById('results-container');
+    const resultsList = document.getElementById('results-list');
+    const resultsHeader = document.getElementById('results-header');
+    const loading = document.getElementById('loading');
+
+    // Pre-fill from URL query param
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('q')) {
+        input.value = params.get('q');
+        doSearch(params.get('q'));
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const query = input.value.trim();
+        if (!query) return;
+        // Update URL without reload
+        history.replaceState(null, '', `?q=${encodeURIComponent(query)}`);
+        doSearch(query);
+    });
+
+    function doSearch(query) {
+        loading.style.display = 'block';
+        resultsContainer.style.display = 'none';
+        resultsList.innerHTML = '';
+
+        fetch(`/api/search/?q=${encodeURIComponent(query)}&n=20`)
+            .then(r => r.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.error) {
+                    resultsHeader.textContent = 'Error: ' + data.error;
+                    resultsContainer.style.display = 'block';
+                    return;
+                }
+
+                resultsHeader.textContent = `${data.results.length} results for "${data.query}"`;
+                resultsContainer.style.display = 'block';
+
+                data.results.forEach(r => {
+                    const card = document.createElement('div');
+                    card.className = 'card mb-2';
+                    card.innerHTML = `
+                        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${r.name}</strong>
+                                <span class="text-muted ms-2">${r.industry}</span>
+                                ${r.url ? `<br><small><a href="${r.url}" target="_blank" rel="noopener">${r.url}</a></small>` : ''}
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary">${r.similarity}%</span>
+                                ${r.x != null ? `<br><a href="/map/?highlight=${r.id}" class="small">Show on map</a>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    resultsList.appendChild(card);
+                });
+            })
+            .catch(() => {
+                loading.style.display = 'none';
+                resultsHeader.textContent = 'Search failed. Try again.';
+                resultsContainer.style.display = 'block';
+            });
+    }
+});
+</script>
+{% endblock %}
