@@ -209,10 +209,14 @@ async def scrape_batch(companies: list[Company], concurrency: int = 50):
 def main():
     parser = argparse.ArgumentParser(description="Bulk async scraper for companies")
     parser.add_argument('--concurrency', type=int, default=50, help='Max concurrent requests')
+    parser.add_argument('--country', default='IT', help='Country code to filter (default: IT)')
     args = parser.parse_args()
 
     # Load companies to scrape from DB
-    companies = list(Company.objects.exclude(scrape_status='success').filter(website__isnull=False))
+    companies = list(
+        Company.objects.exclude(scrape_status='success')
+        .filter(website__isnull=False, country_code=args.country)
+    )
     logger.info(f"Companies to scrape: {len(companies)}")
 
     if not companies:
