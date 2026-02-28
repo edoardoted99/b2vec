@@ -3,20 +3,18 @@
 Async bulk scraper for Italian companies.
 
 Usage:
-    python web_scraper.py [--csv PATH] [--country IT] [--concurrency 50]
+    python web_scraper.py [--concurrency 50]
 
+Reads companies directly from the database.
 Resumes automatically — only scrapes companies with scrape_status != 'success'.
 """
 
 import os
-import sys
 import asyncio
 import argparse
 import logging
-from datetime import timezone as tz
 
 import aiohttp
-import pandas as pd
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
@@ -40,64 +38,6 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
 )
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# CSV Import
-# ---------------------------------------------------------------------------
-
-def import_companies_from_csv(csv_path: str, country_code: str = 'IT') -> int:
-    """Import companies from CSV, filtering by country_code. Returns count of new rows."""
-    logger.info(f"Reading CSV: {csv_path}")
-    df = pd.read_csv(csv_path)
-
-    # Filter by country
-    if country_code:
-        df = df[df['country_code'] == country_code]
-    logger.info(f"Filtered to {len(df)} rows (country_code={country_code})")
-
-    # Drop rows without website
-    df = df[df['website'].notna() & (df['website'].str.strip() != '')]
-    logger.info(f"{len(df)} rows with a website")
-
-    # Get existing handles to skip duplicates (batch to avoid SQLite variable limit)
-    all_handles = df['handle'].tolist()
-    existing_handles = set()
-    batch_size = 900
-    for i in range(0, len(all_handles), batch_size):
-        batch = all_handles[i:i + batch_size]
-        existing_handles.update(
-            Company.objects.filter(handle__in=batch)
-            .values_list('handle', flat=True)
-        )
-
-    new_companies = []
-    for _, row in df.iterrows():
-        handle = row.get('handle')
-        if handle in existing_handles:
-            continue
-        new_companies.append(Company(
-            handle=handle,
-            name=row.get('name', ''),
-            website=row.get('website', ''),
-            url=f"https://www.{row['website'].strip()}",
-            industry=row.get('industry') if pd.notna(row.get('industry')) else None,
-            size=row.get('size') if pd.notna(row.get('size')) else None,
-            type=row.get('type') if pd.notna(row.get('type')) else None,
-            founded=str(int(row['founded'])) if pd.notna(row.get('founded')) else None,
-            city=row.get('city') if pd.notna(row.get('city')) else None,
-            state=row.get('state') if pd.notna(row.get('state')) else None,
-            country_code=row.get('country_code') if pd.notna(row.get('country_code')) else None,
-            scrape_status='pending',
-        ))
-
-    if new_companies:
-        Company.objects.bulk_create(new_companies, batch_size=1000, ignore_conflicts=True)
-        logger.info(f"Inserted {len(new_companies)} new companies")
-    else:
-        logger.info("No new companies to insert")
-
-    return len(new_companies)
-
 
 # ---------------------------------------------------------------------------
 # Text extraction
@@ -268,19 +208,10 @@ async def scrape_batch(companies: list[Company], concurrency: int = 50):
 
 def main():
     parser = argparse.ArgumentParser(description="Bulk async scraper for companies")
-    parser.add_argument('--csv', default='companies-2023-q4-sm.csv', help='Path to CSV file')
-    parser.add_argument('--country', default='IT', help='Country code to filter')
     parser.add_argument('--concurrency', type=int, default=50, help='Max concurrent requests')
-    parser.add_argument('--skip-csv', action='store_true', help='Skip CSV import (use existing DB data)')
     args = parser.parse_args()
 
-    # Phase 1: CSV import
-    if not args.skip_csv:
-        import_companies_from_csv(args.csv, args.country)
-    else:
-        logger.info("Skipping CSV import (--skip-csv)")
-
-    # Phase 2: Scrape pending/errored companies
+    # Load companies to scrape from DB
     companies = list(Company.objects.exclude(scrape_status='success').filter(website__isnull=False))
     logger.info(f"Companies to scrape: {len(companies)}")
 
