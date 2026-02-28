@@ -271,10 +271,14 @@ def main():
     parser.add_argument('--csv', default='companies-2023-q4-sm.csv', help='Path to CSV file')
     parser.add_argument('--country', default='IT', help='Country code to filter')
     parser.add_argument('--concurrency', type=int, default=50, help='Max concurrent requests')
+    parser.add_argument('--skip-csv', action='store_true', help='Skip CSV import (use existing DB data)')
     args = parser.parse_args()
 
     # Phase 1: CSV import
-    import_companies_from_csv(args.csv, args.country)
+    if not args.skip_csv:
+        import_companies_from_csv(args.csv, args.country)
+    else:
+        logger.info("Skipping CSV import (--skip-csv)")
 
     # Phase 2: Scrape pending/errored companies
     companies = list(Company.objects.exclude(scrape_status='success').filter(website__isnull=False))
