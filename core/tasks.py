@@ -1,42 +1,4 @@
-import logging
-
 from celery import shared_task
-from django.db.models import Count
-
-logger = logging.getLogger(__name__)
-
-
-@shared_task(bind=True, max_retries=2, default_retry_delay=30)
-def scrape_company_task(self, company_id):
-    """Scrape a single company."""
-    from core.models import Company
-    from core.services.scraper import scrape_company
-
-    try:
-        company = Company.objects.get(id=company_id)
-        success, msg = scrape_company(company)
-        return {'company_id': company_id, 'success': success, 'message': msg}
-    except Company.DoesNotExist:
-        return {'company_id': company_id, 'success': False, 'message': 'Not found'}
-    except Exception as exc:
-        raise self.retry(exc=exc)
-
-
-@shared_task
-def scrape_pending_companies_task(limit=500):
-    """Dispatch individual scrape tasks for pending companies."""
-    from core.models import Company
-
-    companies = Company.objects.filter(
-        scrape_status='pending'
-    ).values_list('id', flat=True)[:limit]
-
-    count = 0
-    for company_id in companies:
-        scrape_company_task.delay(company_id)
-        count += 1
-
-    return {'dispatched': count}
 
 
 @shared_task

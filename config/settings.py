@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
     'django_celery_results',
     'core',
 ]
@@ -143,7 +144,8 @@ CELERY_TASK_SOFT_TIME_LIMIT = 3600
 CELERY_TASK_TIME_LIMIT = 7200
 
 
-# SBERT
+# Ollama embeddings
 
-SBERT_MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'
-SBERT_VECTOR_DIMENSIONS = 384
+OLLAMA_BASE_URL = 'http://localhost:11434'
+OLLAMA_EMBED_MODEL = 'embeddinggemma'
+EMBEDDING_DIMENSIONS = 768

@@ -1,5 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 
 from .models import Company, ScrapedData, CompanyEmbedding
@@ -10,7 +9,6 @@ def index(request):
         'total_companies': Company.objects.count(),
         'scraped_count': ScrapedData.objects.count(),
         'embedded_count': CompanyEmbedding.objects.count(),
-        'in_progress': Company.objects.filter(scrape_status='in_progress').count(),
         'recent_companies': Company.objects.order_by('-created_at')[:15],
     }
     return render(request, 'core/index.html', context)
@@ -23,26 +21,6 @@ def map_view(request):
 def search_view(request):
     return render(request, 'core/search.html')
 
-
-def trigger_scraping(request):
-    if request.method != 'POST':
-        return redirect('index')
-
-    limit = int(request.POST.get('limit', 500))
-    from .tasks import scrape_pending_companies_task
-    scrape_pending_companies_task.delay(limit=limit)
-    messages.success(request, f'Scraping dispatched for up to {limit} companies.')
-    return redirect('index')
-
-
-def trigger_embedding(request):
-    if request.method != 'POST':
-        return redirect('index')
-
-    from .tasks import full_pipeline_task
-    full_pipeline_task.delay()
-    messages.success(request, 'Embedding pipeline dispatched.')
-    return redirect('index')
 
 
 def api_map_data(request):

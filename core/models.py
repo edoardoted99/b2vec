@@ -54,7 +54,7 @@ class ScrapedData(models.Model):
 
 class CompanyEmbedding(models.Model):
     company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name='embedding')
-    vector = VectorField(dimensions=384)
+    vector = VectorField(dimensions=768)
     umap_x = models.FloatField(blank=True, null=True)
     umap_y = models.FloatField(blank=True, null=True)
     cluster_id = models.IntegerField(blank=True, null=True)
