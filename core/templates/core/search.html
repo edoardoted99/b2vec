@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     card.innerHTML = `
                         <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
                             <div>
-                                <strong>${r.name}</strong>
+                                <a href="/company/${r.id}/" class="fw-bold text-decoration-none">${r.name}</a>
                                 <span class="text-muted ms-2">${r.industry}</span>
                                 ${r.url ? `<br><small><a href="${r.url}" target="_blank" rel="noopener">${r.url}</a></small>` : ''}
                             </div>

@@ -1,53 +1,68 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<h2 class="mt-3 mb-4">Dashboard</h2>
+<div class="row mt-4">
+    <div class="col-lg-8 mx-auto text-center">
+        <h1 class="mb-3">B2Vec</h1>
+        <p class="text-muted mb-4">Cerca aziende per significato, non per parole chiave.</p>
 
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-lg-4">
+        <form action="{% url 'search_view' %}" method="get" class="mb-5">
+            <div class="input-group input-group-lg">
+                <input type="text" name="q" class="form-control" placeholder="es. automazione industriale, consulenza IT, produzione alimentare..." autofocus>
+                <button type="submit" class="btn btn-primary">Cerca</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-5">
+    <div class="col-6 col-lg-3">
         <div class="card text-white bg-primary h-100">
-            <div class="card-body">
-                <h6 class="card-title">Companies</h6>
-                <h2 class="mb-0">{{ total_companies }}</h2>
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold">{{ total_companies|default:"0" }}</div>
+                <small>Aziende</small>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-4">
+    <div class="col-6 col-lg-3">
         <div class="card text-white bg-warning h-100">
-            <div class="card-body">
-                <h6 class="card-title">Scraped</h6>
-                <h2 class="mb-0">{{ scraped_count }}</h2>
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold">{{ scraped_count|default:"0" }}</div>
+                <small>Scrapped</small>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-4">
+    <div class="col-6 col-lg-3">
         <div class="card text-white bg-success h-100">
-            <div class="card-body">
-                <h6 class="card-title">Embedded</h6>
-                <h2 class="mb-0">{{ embedded_count }}</h2>
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold">{{ embedded_count|default:"0" }}</div>
+                <small>Embeddings</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card text-white bg-info h-100">
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold">{{ properties_count|default:"0" }}</div>
+                <small>Profili estratti</small>
             </div>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">Recent Companies</div>
-    <div class="card-body p-0">
-        <ul class="list-group list-group-flush">
-            {% for company in recent_companies %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{ company.name }}</strong>
-                    {% if company.industry %}<br><small class="text-muted">{{ company.industry }}</small>{% endif %}
-                </div>
-                <span class="badge {% if company.scrape_status == 'success' %}bg-success{% elif company.scrape_status == 'error' %}bg-danger{% else %}bg-secondary{% endif %}">
-                    {{ company.scrape_status }}
-                </span>
-            </li>
-            {% empty %}
-            <li class="list-group-item text-muted">No companies yet.</li>
-            {% endfor %}
-        </ul>
+{% if top_industries %}
+<h5 class="mb-3">Top Industries</h5>
+<div class="row g-2">
+    {% for ind in top_industries %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <a href="{% url 'search_view' %}?q={{ ind.industry|urlencode }}" class="card text-decoration-none h-100">
+            <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                <span class="text-dark">{{ ind.industry }}</span>
+                <span class="badge bg-secondary">{{ ind.count }}</span>
+            </div>
+        </a>
     </div>
+    {% endfor %}
 </div>
+{% endif %}
 {% endblock %}

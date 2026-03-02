@@ -74,3 +74,25 @@ class CompanyEmbedding(models.Model):
 
     def __str__(self):
         return f"Embedding for {self.company.name}"
+
+
+class CompanyProperties(models.Model):
+    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name='properties')
+    phone = models.CharField(max_length=100, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    vat_number = models.CharField(max_length=50, blank=True, null=True, help_text="Partita IVA")
+    address = models.TextField(blank=True, null=True)
+    description = models.TextField(blank=True, null=True, help_text="What the company does")
+    services = models.JSONField(default=list, blank=True, help_text="List of services/products")
+    linkedin = models.URLField(blank=True, null=True)
+    facebook = models.URLField(blank=True, null=True)
+    instagram = models.URLField(blank=True, null=True)
+    model_name = models.CharField(max_length=100, blank=True, null=True, help_text="Ollama model used for extraction")
+    extracted_at = models.DateTimeField(blank=True, null=True, help_text="When properties were extracted")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "company properties"
+
+    def __str__(self):
+        return f"Properties for {self.company.name}"

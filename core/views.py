@@ -1,15 +1,25 @@
+from django.db.models import Count
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 
-from .models import Company, ScrapedData, CompanyEmbedding
+from .models import Company, ScrapedData, CompanyEmbedding, CompanyProperties
 
 
 def index(request):
+    top_industries = (
+        Company.objects
+        .filter(industry__isnull=False)
+        .exclude(industry='')
+        .values('industry')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:12]
+    )
     context = {
         'total_companies': Company.objects.count(),
         'scraped_count': ScrapedData.objects.count(),
         'embedded_count': CompanyEmbedding.objects.count(),
-        'recent_companies': Company.objects.order_by('-created_at')[:15],
+        'properties_count': CompanyProperties.objects.count(),
+        'top_industries': top_industries,
     }
     return render(request, 'core/index.html', context)
 
@@ -20,6 +30,18 @@ def map_view(request):
 
 def search_view(request):
     return render(request, 'core/search.html')
+
+
+def company_detail_view(request, company_id):
+    company = get_object_or_404(Company, id=company_id)
+    properties = getattr(company, 'properties', None)
+    embedding = getattr(company, 'embedding', None)
+    context = {
+        'company': company,
+        'properties': properties,
+        'has_embedding': embedding is not None,
+    }
+    return render(request, 'core/company_detail.html', context)
 
 
 
@@ -84,8 +106,9 @@ def api_similar_companies(request, company_id):
 
 
 def api_semantic_search(request):
+    import requests as http_requests
     from pgvector.django import CosineDistance
-    from .services.embeddings import embed_text
+    from django.conf import settings
 
     query = request.GET.get('q', '').strip()
     n = int(request.GET.get('n', 20))
@@ -94,7 +117,13 @@ def api_semantic_search(request):
     if not query:
         return JsonResponse({'error': 'Missing query parameter q'}, status=400)
 
-    query_vector = embed_text(query).tolist()
+    resp = http_requests.post(
+        f"{settings.OLLAMA_BASE_URL}/api/embed",
+        json={"model": settings.OLLAMA_EMBED_MODEL, "input": query},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    query_vector = resp.json()["embeddings"][0]
 
     results = (
         CompanyEmbedding.objects
