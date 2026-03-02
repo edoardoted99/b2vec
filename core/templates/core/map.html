@@ -8,7 +8,7 @@
         position: absolute;
         top: 0;
         right: 0;
-        width: 350px;
+        width: 380px;
         max-height: calc(100vh - 120px);
         overflow-y: auto;
         display: none;
@@ -18,19 +18,43 @@
         box-shadow: -2px 0 8px rgba(0,0,0,.1);
     }
     #sidebar.show { display: block; }
+    #controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        background: rgba(255,255,255,0.95);
+        border-radius: 8px;
+        padding: 8px 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div id="map-container" class="mt-3">
+    <div id="controls">
+        <div class="d-flex align-items-center gap-2">
+            <select id="industry-filter" class="form-select form-select-sm" style="width:220px">
+                <option value="">Tutte le industry</option>
+            </select>
+            <span id="point-count" class="text-muted small"></span>
+        </div>
+    </div>
+
     <div id="plotly-map"></div>
+
     <div id="sidebar">
         <div class="card border-0">
-            <div class="card-header d-flex justify-content-between align-items-center bg-dark text-white">
-                <strong id="sidebar-title">Similar Companies</strong>
-                <button id="sidebar-close" class="btn btn-sm btn-outline-light">&times;</button>
+            <div class="card-header bg-dark text-white p-2 px-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong id="sidebar-title"></strong>
+                    <button id="sidebar-close" class="btn btn-sm btn-outline-light py-0">&times;</button>
+                </div>
             </div>
+            <div id="sidebar-company" class="p-3 border-bottom" style="display:none"></div>
             <div class="card-body p-0">
+                <div class="px-3 pt-2 pb-1"><small class="text-muted fw-bold">AZIENDE SIMILI</small></div>
                 <ul id="similar-list" class="list-group list-group-flush"></ul>
             </div>
         </div>
@@ -45,13 +69,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const sidebar = document.getElementById('sidebar');
     const similarList = document.getElementById('similar-list');
     const sidebarTitle = document.getElementById('sidebar-title');
+    const sidebarCompany = document.getElementById('sidebar-company');
     const sidebarClose = document.getElementById('sidebar-close');
+    const industryFilter = document.getElementById('industry-filter');
+    const pointCount = document.getElementById('point-count');
 
     let allCompanies = [];
+    let filteredCompanies = [];
     let selectedId = null;
     let similarIds = new Set();
 
-    // Distinct color palette for clusters
     const COLORS = [
         '#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A',
         '#19D3F3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52',
@@ -63,6 +90,17 @@ document.addEventListener('DOMContentLoaded', function () {
         return COLORS[clusterId % COLORS.length];
     }
 
+    function truncate(text, max) {
+        if (!text || text.length <= max) return text || '';
+        return text.substring(0, max) + '...';
+    }
+
+    function hoverText(c) {
+        let t = `<b>${c.name}</b><br>${c.industry}`;
+        if (c.description) t += `<br><i>${truncate(c.description, 120)}</i>`;
+        return t;
+    }
+
     sidebarClose.addEventListener('click', function () {
         sidebar.classList.remove('show');
         selectedId = null;
@@ -70,24 +108,55 @@ document.addEventListener('DOMContentLoaded', function () {
         renderPlot();
     });
 
+    industryFilter.addEventListener('change', function () {
+        const val = this.value;
+        filteredCompanies = val
+            ? allCompanies.filter(c => c.industry === val)
+            : allCompanies;
+        selectedId = null;
+        similarIds.clear();
+        sidebar.classList.remove('show');
+        pointCount.textContent = `${filteredCompanies.length} aziende`;
+        renderPlot();
+    });
+
     fetch('/api/map-data/')
         .then(r => r.json())
         .then(data => {
             allCompanies = data.companies;
+            filteredCompanies = allCompanies;
+            pointCount.textContent = `${allCompanies.length} aziende`;
+
+            // Populate industry filter
+            const industries = {};
+            allCompanies.forEach(c => {
+                if (c.industry && c.industry !== 'Unknown') {
+                    industries[c.industry] = (industries[c.industry] || 0) + 1;
+                }
+            });
+            Object.entries(industries)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([ind, count]) => {
+                    const opt = document.createElement('option');
+                    opt.value = ind;
+                    opt.textContent = `${ind} (${count})`;
+                    industryFilter.appendChild(opt);
+                });
+
             renderPlot();
         });
 
     function renderPlot() {
         const traces = [];
+        const companies = filteredCompanies;
 
         if (selectedId !== null) {
-            // Three groups: other, similar, selected
-            const other = { x: [], y: [], text: [], ids: [], marker: { color: [], size: 5, opacity: 0.3 }, name: 'Other', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
-            const sim = { x: [], y: [], text: [], ids: [], marker: { color: 'rgba(255,99,71,0.9)', size: 10 }, name: 'Similar', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
-            const sel = { x: [], y: [], text: [], ids: [], marker: { color: 'rgba(34,197,94,1)', size: 14, symbol: 'star' }, name: 'Selected', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
+            const other = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: [], size: 5, opacity: 0.3 }, name: 'Altre', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
+            const sim = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: 'rgba(255,99,71,0.9)', size: 10 }, name: 'Simili', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
+            const sel = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: 'rgba(34,197,94,1)', size: 14, symbol: 'star' }, name: 'Selezionata', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
 
-            allCompanies.forEach(c => {
-                const label = `${c.name}\n${c.industry}`;
+            companies.forEach(c => {
+                const label = hoverText(c);
                 if (c.id === selectedId) {
                     sel.x.push(c.x); sel.y.push(c.y); sel.text.push(label); sel.ids.push(c.id);
                 } else if (similarIds.has(c.id)) {
@@ -99,16 +168,15 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             traces.push(other, sim, sel);
         } else {
-            // Group by cluster
             const groups = {};
-            allCompanies.forEach(c => {
+            companies.forEach(c => {
                 const label = c.cluster_label || 'Unknown';
                 if (!groups[label]) {
                     groups[label] = { x: [], y: [], text: [], ids: [], clusterId: c.cluster_id };
                 }
                 groups[label].x.push(c.x);
                 groups[label].y.push(c.y);
-                groups[label].text.push(`${c.name}\n${c.industry}`);
+                groups[label].text.push(hoverText(c));
                 groups[label].ids.push(c.id);
             });
 
@@ -126,10 +194,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const layout = {
             margin: { t: 10, r: 10, b: 40, l: 40 },
-            xaxis: { title: 'UMAP 1', zeroline: false },
-            yaxis: { title: 'UMAP 2', zeroline: false },
-            legend: { orientation: 'h', y: -0.15 },
+            xaxis: { title: '', zeroline: false, showgrid: false, showticklabels: false },
+            yaxis: { title: '', zeroline: false, showgrid: false, showticklabels: false },
+            legend: { orientation: 'h', y: -0.05, font: { size: 11 } },
             hovermode: 'closest',
+            hoverlabel: { bgcolor: 'white', font: { size: 12 } },
         };
 
         Plotly.react(mapDiv, traces, layout, { responsive: true }).then(() => {
@@ -144,11 +213,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const companyId = trace.ids ? trace.ids[pt.pointIndex] : null;
         if (!companyId) return;
 
+        const company = allCompanies.find(c => c.id === companyId);
+
         fetch(`/api/similar/${companyId}/?n=10`)
             .then(r => r.json())
             .then(result => {
                 if (result.error) return;
-                showSimilar(companyId, result.company, result.similar);
+                showSimilar(companyId, company || result.company, result.similar);
             });
     }
 
@@ -156,18 +227,30 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedId = compId;
         similarIds = new Set(similar.map(s => s.id));
 
-        sidebarTitle.textContent = `Similar to ${company.name}`;
-        similarList.innerHTML = '';
+        sidebarTitle.textContent = company.name;
 
+        // Company info card
+        sidebarCompany.style.display = 'block';
+        const domain = company.url ? new URL(company.url).hostname : '';
+        sidebarCompany.innerHTML = `
+            <div class="d-flex align-items-center gap-2 mb-2">
+                ${domain ? `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" width="24" height="24" class="rounded">` : ''}
+                <span class="badge bg-primary">${company.industry || 'Unknown'}</span>
+            </div>
+            ${company.description ? `<p class="mb-2 small">${truncate(company.description, 200)}</p>` : ''}
+            <a href="/company/${compId}/" class="btn btn-sm btn-outline-dark">Apri profilo</a>
+        `;
+
+        similarList.innerHTML = '';
         similar.forEach(s => {
             const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.className = 'list-group-item';
             li.innerHTML = `
-                <div>
-                    <strong>${s.name}</strong><br>
-                    <small class="text-muted">${s.industry}</small>
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="/company/${s.id}/" class="text-decoration-none fw-bold">${s.name}</a>
+                    <span class="badge bg-primary">${s.similarity}%</span>
                 </div>
-                <span class="badge bg-primary rounded-pill">${s.similarity}%</span>
+                <small class="text-muted">${s.industry}</small>
             `;
             similarList.appendChild(li);
         });

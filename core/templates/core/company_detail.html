@@ -12,14 +12,19 @@
         </nav>
 
         <div class="d-flex justify-content-between align-items-start mb-4">
-            <div>
-                <h2 class="mb-1">{{ company.name }}</h2>
-                {% if company.industry %}
-                    <span class="badge bg-primary fs-6">{{ company.industry }}</span>
-                {% endif %}
+            <div class="d-flex align-items-center gap-3">
                 {% if company.website %}
-                    <a href="http://{{ company.website }}" target="_blank" rel="noopener" class="ms-2 text-muted">{{ company.website }}</a>
+                    <img src="https://www.google.com/s2/favicons?domain={{ company.website }}&sz=64" alt="" width="48" height="48" class="rounded" style="image-rendering: auto;">
                 {% endif %}
+                <div>
+                    <h2 class="mb-1">{{ company.name }}</h2>
+                    {% if company.industry %}
+                        <span class="badge bg-primary fs-6">{{ company.industry }}</span>
+                    {% endif %}
+                    {% if company.website %}
+                        <a href="http://{{ company.website }}" target="_blank" rel="noopener" class="ms-2 text-muted">{{ company.website }}</a>
+                    {% endif %}
+                </div>
             </div>
         </div>
 

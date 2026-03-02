@@ -46,13 +46,20 @@ def company_detail_view(request, company_id):
 
 
 def api_map_data(request):
+    from django.db.models import OuterRef, Subquery
+    desc_subquery = CompanyProperties.objects.filter(
+        company_id=OuterRef('company_id')
+    ).values('description')[:1]
+
     data = list(
         CompanyEmbedding.objects.select_related('company')
         .filter(umap_x__isnull=False)
+        .annotate(description=Subquery(desc_subquery))
         .values_list(
             'company__id', 'company__name', 'company__url',
             'umap_x', 'umap_y',
             'company__industry', 'cluster_id', 'cluster_label',
+            'description',
         )
     )
     companies = [
@@ -65,6 +72,7 @@ def api_map_data(request):
             'industry': row[5] or 'Unknown',
             'cluster_id': row[6],
             'cluster_label': row[7] or 'Unknown',
+            'description': row[8] or '',
         }
         for row in data
     ]
@@ -146,6 +154,52 @@ def api_semantic_search(request):
     ]
 
     return JsonResponse({'query': query, 'results': companies})
+
+
+def atlas_view(request):
+    return render(request, 'core/atlas.html')
+
+
+def api_atlas_data(request):
+    from django.db.models import OuterRef, Subquery
+
+    desc_subquery = CompanyProperties.objects.filter(
+        company_id=OuterRef('company_id')
+    ).values('description')[:1]
+
+    data = list(
+        CompanyEmbedding.objects.select_related('company')
+        .filter(umap_x__isnull=False)
+        .annotate(description=Subquery(desc_subquery))
+        .values_list(
+            'company__id', 'company__name',
+            'umap_x', 'umap_y',
+            'company__industry', 'cluster_id', 'cluster_label',
+        )
+    )
+
+    # Build unique cluster label mapping: cluster_id -> index
+    unique_labels = {}
+    for row in data:
+        cid = row[5]
+        if cid is not None and cid not in unique_labels:
+            unique_labels[cid] = row[6] or 'Unknown'
+
+    # Sort by cluster_id for consistent ordering
+    sorted_cids = sorted(unique_labels.keys())
+    cid_to_index = {cid: i for i, cid in enumerate(sorted_cids)}
+    category_labels = [unique_labels[cid] for cid in sorted_cids]
+
+    result = {
+        'x': [row[2] for row in data],
+        'y': [row[3] for row in data],
+        'categories': [cid_to_index.get(row[5], 0) for row in data],
+        'categoryLabels': category_labels,
+        'names': [row[1] or '' for row in data],
+        'industries': [row[4] or 'Unknown' for row in data],
+        'ids': [row[0] for row in data],
+    }
+    return JsonResponse(result)
 
 
 def api_company_detail(request, company_id):

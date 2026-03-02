@@ -1,0 +1,159 @@
+{% extends 'core/base.html' %}
+
+{% block extra_css %}
+<style>
+    #atlas-container {
+        width: 100%;
+        height: calc(100vh - 60px);
+        position: relative;
+    }
+    #atlas-loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+    }
+    #atlas-tooltip {
+        position: fixed;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 8px 12px;
+        pointer-events: none;
+        z-index: 1000;
+        display: none;
+        max-width: 300px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        font-size: 13px;
+    }
+    #atlas-tooltip .tt-name { font-weight: bold; margin-bottom: 2px; }
+    #atlas-tooltip .tt-industry { color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="atlas-container" class="mt-0">
+    <div id="atlas-loading" class="text-center">
+        <div class="spinner-border text-primary" role="status"></div>
+        <div id="loading-text" class="mt-2 text-muted">Loading Atlas module...</div>
+    </div>
+</div>
+<div id="atlas-tooltip">
+    <div class="tt-name"></div>
+    <div class="tt-industry"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+const container = document.getElementById('atlas-container');
+const loading = document.getElementById('atlas-loading');
+const loadingText = document.getElementById('loading-text');
+const tooltip = document.getElementById('atlas-tooltip');
+
+const COLORS = [
+    '#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A',
+    '#19D3F3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52',
+    '#1F77B4', '#FF7F0E', '#2CA02C', '#D62728', '#9467BD',
+    '#8C564B', '#E377C2', '#7F7F7F', '#BCBD22', '#17BECF',
+];
+
+let mouseX = 0, mouseY = 0;
+container.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+
+try {
+    loadingText.textContent = 'Loading Atlas module...';
+    const { EmbeddingView } = await import("https://cdn.jsdelivr.net/npm/embedding-atlas@0.17.0/+esm");
+    console.log('EmbeddingView loaded:', EmbeddingView);
+
+    loadingText.textContent = 'Fetching data...';
+    const resp = await fetch('/api/atlas-data/');
+    const data = await resp.json();
+    console.log(`Atlas data: ${data.x.length} points, ${data.categoryLabels.length} clusters`);
+
+    loading.style.display = 'none';
+
+    const n = data.x.length;
+    const x = new Float32Array(data.x);
+    const y = new Float32Array(data.y);
+    const category = new Uint8Array(data.categories);
+    const categoryColors = data.categoryLabels.map((_, i) => COLORS[i % COLORS.length]);
+
+    // querySelection: find nearest point to click/hover position
+    async function querySelection(qx, qy, unitDistance) {
+        let minDist = Infinity;
+        let minIdx = -1;
+        for (let i = 0; i < n; i++) {
+            const dx = x[i] - qx;
+            const dy = y[i] - qy;
+            const d = dx * dx + dy * dy;
+            if (d < minDist) { minDist = d; minIdx = i; }
+        }
+        if (minIdx < 0 || Math.sqrt(minDist) > unitDistance * 10) return null;
+        return {
+            index: minIdx,
+            x: x[minIdx],
+            y: y[minIdx],
+            text: data.names[minIdx] || '',
+            fields: {},
+        };
+    }
+
+    // queryClusterLabels: return cluster label for each region
+    async function queryClusterLabels(regions) {
+        return regions.map(() => null);
+    }
+
+    const view = new EmbeddingView(container, {
+        data: { x, y, category },
+        categoryColors: categoryColors,
+        width: container.clientWidth,
+        height: container.clientHeight,
+        config: {
+            colorScheme: 'light',
+            mode: 'points',
+        },
+        querySelection,
+        queryClusterLabels,
+    });
+
+    // Resize handling
+    const resizeObserver = new ResizeObserver(() => {
+        view.update({
+            width: container.clientWidth,
+            height: container.clientHeight,
+        });
+    });
+    resizeObserver.observe(container);
+
+    // Tooltip on hover
+    view.onTooltip((point) => {
+        if (point != null && point.index != null) {
+            const idx = point.index;
+            tooltip.querySelector('.tt-name').textContent = data.names[idx] || '';
+            tooltip.querySelector('.tt-industry').textContent = data.industries[idx] || '';
+            tooltip.style.display = 'block';
+            tooltip.style.left = (mouseX + 14) + 'px';
+            tooltip.style.top = (mouseY - 10) + 'px';
+        } else {
+            tooltip.style.display = 'none';
+        }
+    });
+
+    // Click to navigate to company detail
+    view.onSelection((points) => {
+        if (points && points.length > 0) {
+            const idx = points[0].index;
+            if (idx != null && data.ids[idx]) {
+                window.location.href = '/company/' + data.ids[idx] + '/';
+            }
+        }
+    });
+
+} catch (err) {
+    console.error('Atlas error:', err);
+    loading.innerHTML = '<div class="text-danger">Failed to load Atlas: ' + err.message + '</div>';
+}
+</script>
+{% endblock %}
