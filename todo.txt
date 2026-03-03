@@ -1,0 +1,6 @@
+quando faccio search dividiamo in due colonni i risultati. da una parte quelli testuali, dall'alro qulli smeanitci. ha senso?
+
+Quando clicchiamo su atlas deve aprirsi in una nuova finestra
+
+mancano le proprità tipo numero nella view dell'azienda2
+
