@@ -16,21 +16,17 @@ Project explanation (ITA): [YouTube](https://youtu.be/Prr1o_zfY3k)
 
 ![AI Chat](screens/chat.png)
 
-**Export contacts** — semantic query to downloadable CSV with email and phone
+**Cluster map** — companies projected in 2D, colored by HDBSCAN cluster, with industry filter
 
-![Export contacts](screens/export.png)
+![Cluster map](screens/map.png)
 
-**Cluster map** — companies projected in 2D, colored by HDBSCAN cluster
+**Search** — text and semantic search across all companies
 
-![Cluster map](screens/clusters.png)
+![Search](screens/search.png)
 
-**Atlas view** — embedding-atlas visualization for large-scale exploration
+**Company detail** — contacts, company info, services, and similar companies
 
-![Atlas view](screens/atlas.png)
-
-**Semantic search** — search by concept, not keywords
-
-![Semantic search](screens/search.png)
+![Company detail](screens/company.png)
 
 ## How it works
 
