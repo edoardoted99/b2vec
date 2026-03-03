@@ -45,6 +45,15 @@ services:
       - web
     restart: unless-stopped
 
+  atlas:
+    build:
+      context: .
+      dockerfile: atlas.Dockerfile
+    volumes:
+      - ./atlas_data.parquet:/data/atlas_data.parquet:ro
+    command: ["atlas_data.parquet", "--text", "description", "--x", "projection_x", "--y", "projection_y", "--neighbors", "neighbors"]
+    restart: unless-stopped
+
   certbot:
     image: certbot/certbot
     volumes:
