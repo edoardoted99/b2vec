@@ -2,7 +2,7 @@
 
 **Semantic business map** — explore and discover companies through vector similarity.
 
-B2Vec scrapes company websites, encodes their content with SBERT, projects embeddings into 2D with UMAP, clusters them with HDBSCAN, and lets you explore everything on an interactive Plotly.js map with semantic search.
+B2Vec scrapes company websites, encodes their content with embedding models, projects embeddings into 2D with UMAP, clusters them with HDBSCAN, and lets you explore everything on an interactive map with semantic search and an AI chat assistant.
 
 Live at [b2vec.org](https://b2vec.org)
 
@@ -12,13 +12,21 @@ Project explanation (ITA): [YouTube](https://youtu.be/Prr1o_zfY3k)
 
 ## Screenshots
 
+**AI Chat** — ask questions about companies, search semantically, export contacts
+
+![AI Chat](screens/chat.png)
+
+**Export contacts** — semantic query to downloadable CSV with email and phone
+
+![Export contacts](screens/export.png)
+
 **Cluster map** — companies projected in 2D, colored by HDBSCAN cluster
 
 ![Cluster map](screens/clusters.png)
 
-**Similar companies** — click any point to find the most similar businesses
+**Atlas view** — embedding-atlas visualization for large-scale exploration
 
-![Similar companies](screens/map_selected.png)
+![Atlas view](screens/atlas.png)
 
 **Semantic search** — search by concept, not keywords
 
@@ -29,26 +37,37 @@ Project explanation (ITA): [YouTube](https://youtu.be/Prr1o_zfY3k)
 ```
 CSV (268k companies)
   → Web scraping (async, multi-URL retry)
-    → SBERT encoding (paraphrase-multilingual-MiniLM-L12-v2, 384d)
+    → Embedding (Ollama nomic-embed-text, 768d)
       → UMAP projection (2D)
         → HDBSCAN clustering
-          → Interactive map + semantic search
+          → Interactive map + semantic search + AI chat
 ```
 
 1. **Scraping** — For each company, tries `https://www.`, `https://`, `http://www.` variants, extracts clean text stripping boilerplate
-2. **Embedding** — Chunks long texts (500 chars, 100 overlap), encodes with SBERT, mean-pools per company into a 384-dimensional vector
-3. **Projection** — UMAP reduces to 2D for visualization, HDBSCAN assigns cluster labels from dominant industry
-4. **Search** — Queries are encoded with the same model and matched via pgvector cosine distance
+2. **Embedding** — Chunks long texts (500 chars, 100 overlap), encodes with Ollama embedding model, mean-pools per company
+3. **Property extraction** — Ollama LLM extracts structured data (email, phone, VAT, services, description) from scraped text
+4. **Projection** — UMAP reduces to 2D for visualization, HDBSCAN assigns cluster labels from dominant industry
+5. **Search** — Queries are encoded with the same model and matched via pgvector cosine distance
+6. **Chat** — AI assistant powered by Ollama with tool-calling: semantic search, SQL queries, web search, contact export
 
 ## Stack
 
 | Layer | Tech |
 |---|---|
-| Backend | Django 5, Celery, PostgreSQL + pgvector |
-| Embeddings | sentence-transformers (MiniLM-L12-v2) |
+| Backend | Django 5, PostgreSQL + pgvector |
+| LLM / Embeddings | Ollama (qwen2.5, nomic-embed-text) |
 | Projection | UMAP + HDBSCAN |
 | Frontend | Plotly.js, Bootstrap 5.3 |
 | Infra | Docker (pgvector:pg16, Redis 7) |
+
+## Features
+
+- **Interactive map** — Plotly.js scatter plot with UMAP 2D projection, colored by cluster
+- **Atlas view** — embedding-atlas large-scale visualization
+- **Semantic search** — search companies by concept/description
+- **AI Chat** — conversational assistant with tool-calling (semantic search, company lookup, SQL, web search)
+- **Contact export** — ask the chat to export contacts by sector → downloadable CSV
+- **Company detail** — full info page with description, contacts, services, similar companies
 
 ## Quickstart
 
@@ -64,9 +83,6 @@ python manage.py migrate
 
 # Import data from SQLite (if migrating from previous version)
 python manage.py migrate_data
-
-# Start Celery worker (separate terminal)
-celery -A config worker -l info
 
 # Start Django
 python manage.py runserver
@@ -91,19 +107,39 @@ python manage.py generate_embeddings --projections-only
 
 | Route | Description |
 |---|---|
-| `/` | Dashboard — stats, scraping and embedding actions |
-| `/map/` | Interactive Plotly.js scatter map with cluster colors, click for similar companies |
-| `/search/` | Semantic search — encode query with SBERT, find nearest neighbors via pgvector |
-| `/admin/` | Django admin |
+| `/` | AI Chat — conversational interface with tool-calling |
+| `/map/` | Interactive Plotly.js scatter map with cluster colors |
+| `/search/` | Semantic search — find companies by description |
+| `/atlas/` | Embedding-atlas large-scale visualization |
+| `/company/<id>/` | Company detail page |
 
 ## API
 
 | Endpoint | Method | Description |
 |---|---|---|
+| `/api/chat/` | POST | AI chat with streaming SSE (tool calls + token stream) |
 | `/api/map-data/` | GET | All companies with UMAP coordinates and cluster info |
+| `/api/atlas-data/` | GET | Atlas visualization data |
 | `/api/similar/<id>/?n=10` | GET | Top N similar companies (pgvector cosine distance) |
 | `/api/search/?q=...&n=20` | GET | Semantic search by text query |
+| `/api/text-search/?q=...` | GET | Text search by company name/URL |
 | `/api/company/<id>/` | GET | Company detail |
+| `/exports/<filename>` | GET | Download exported CSV file |
+
+## Chat tools
+
+The AI chat assistant can use these tools:
+
+| Tool | Description |
+|---|---|
+| `semantic_search` | Find companies by concept/sector via embedding similarity |
+| `search_by_name` | Search companies by name or URL |
+| `get_company` | Get full details of a specific company |
+| `get_similar` | Find similar companies by embedding distance |
+| `get_stats` | Database statistics (counts, top industries/cities) |
+| `export_contacts` | Export matching contacts to downloadable CSV |
+| `web_search` | Search the web via DuckDuckGo |
+| `run_sql` | Execute read-only SQL queries |
 
 ## Dataset
 
