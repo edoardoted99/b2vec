@@ -16,3 +16,4 @@ tqdm
 umap-learn
 embedding-atlas
 pyarrow
+python-dotenv

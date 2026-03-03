@@ -1,7 +1,9 @@
+b2vecenv/
 __pycache__/
 *.pyc
+.git/
+.env
 db.sqlite3
 companies-2023-q4-sm.csv
-.env
-.env.prod
-staticfiles/
+*.parquet
+.claude/

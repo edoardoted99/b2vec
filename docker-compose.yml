@@ -15,6 +15,42 @@ services:
     ports:
       - "6379:6379"
 
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: b2vec
+      DB_USER: b2vec
+      DB_PASSWORD: b2vec_dev
+      CELERY_BROKER_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://host.docker.internal:11435
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - static_files:/app/staticfiles
+      - ./exports:/app/exports
+    restart: unless-stopped
+
+  celery-worker:
+    build: .
+    command: celery -A config worker -l info --concurrency=2
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: b2vec
+      DB_USER: b2vec
+      DB_PASSWORD: b2vec_dev
+      CELERY_BROKER_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://host.docker.internal:11435
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
   atlas:
     build:
       context: .
@@ -28,3 +64,4 @@ services:
 
 volumes:
   pgdata:
+  static_files:
