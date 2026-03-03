@@ -28,6 +28,10 @@ Project explanation (ITA): [YouTube](https://youtu.be/Prr1o_zfY3k)
 
 ![Company detail](screens/company.png)
 
+**Atlas view** — embedding-atlas large-scale visualization
+
+![Atlas view](screens/atlas.png)
+
 ## How it works
 
 ```
