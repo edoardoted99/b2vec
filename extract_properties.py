@@ -148,10 +148,10 @@ def main():
     parser.add_argument('--model', default='qwen3:8b', help='Ollama model name')
     args = parser.parse_args()
 
-    # Skip companies already extracted (have extracted_at set)
+    # Skip companies already extracted with the SAME model
     already_done = set(
         CompanyProperties.objects
-        .filter(extracted_at__isnull=False)
+        .filter(extracted_at__isnull=False, model_name=args.model)
         .values_list('company_id', flat=True)
     )
     scraped = list(
