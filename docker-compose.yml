@@ -15,5 +15,16 @@ services:
     ports:
       - "6379:6379"
 
+  atlas:
+    build:
+      context: .
+      dockerfile: atlas.Dockerfile
+    ports:
+      - "5055:5055"
+    volumes:
+      - ./atlas_data.parquet:/data/atlas_data.parquet:ro
+    command: ["atlas_data.parquet", "--text", "description", "--x", "projection_x", "--y", "projection_y", "--neighbors", "neighbors"]
+    restart: unless-stopped
+
 volumes:
   pgdata:

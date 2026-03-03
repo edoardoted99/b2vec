@@ -1,8 +1,19 @@
+import json
+import logging
+import re
+from pathlib import Path
+
+from django.conf import settings
 from django.db.models import Count
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse, StreamingHttpResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 
+from .id_cipher import encode_id, decode_id
 from .models import Company, ScrapedData, CompanyEmbedding, CompanyProperties
+
+logger = logging.getLogger(__name__)
 
 
 def index(request):
@@ -32,14 +43,16 @@ def search_view(request):
     return render(request, 'core/search.html')
 
 
-def company_detail_view(request, company_id):
+def company_detail_view(request, token):
+    company_id = decode_id(token)
     company = get_object_or_404(Company, id=company_id)
-    properties = getattr(company, 'properties', None)
-    embedding = getattr(company, 'embedding', None)
+    properties = CompanyProperties.objects.filter(company=company).first()
+    has_embedding = CompanyEmbedding.objects.filter(company=company).exists()
     context = {
         'company': company,
         'properties': properties,
-        'has_embedding': embedding is not None,
+        'has_embedding': has_embedding,
+        'token': token,
     }
     return render(request, 'core/company_detail.html', context)
 
@@ -64,7 +77,7 @@ def api_map_data(request):
     )
     companies = [
         {
-            'id': row[0],
+            'id': encode_id(row[0]),
             'name': row[1],
             'url': row[2],
             'x': row[3],
@@ -79,9 +92,10 @@ def api_map_data(request):
     return JsonResponse({'companies': companies})
 
 
-def api_similar_companies(request, company_id):
+def api_similar_companies(request, token):
     from pgvector.django import CosineDistance
 
+    company_id = decode_id(token)
     n = int(request.GET.get('n', 10))
     n = max(1, min(n, 50))
 
@@ -97,7 +111,7 @@ def api_similar_companies(request, company_id):
 
     similar = [
         {
-            'id': emb.company.id,
+            'id': encode_id(emb.company.id),
             'name': emb.company.name,
             'url': emb.company.url,
             'industry': emb.company.industry or 'Unknown',
@@ -108,15 +122,56 @@ def api_similar_companies(request, company_id):
 
     company = target.company
     return JsonResponse({
-        'company': {'id': company.id, 'name': company.name},
+        'company': {'id': encode_id(company.id), 'name': company.name},
         'similar': similar,
     })
+
+
+def api_text_search(request):
+    query = request.GET.get('q', '').strip()
+    n = int(request.GET.get('n', 20))
+    n = max(1, min(n, 50))
+
+    if not query:
+        return JsonResponse({'error': 'Missing query parameter q'}, status=400)
+
+    from django.db.models import Q, Value, IntegerField, Case, When
+
+    results = (
+        Company.objects
+        .filter(
+            Q(name__icontains=query) |
+            Q(url__icontains=query) |
+            Q(website__icontains=query)
+        )
+        .annotate(
+            rank=Case(
+                When(name__iexact=query, then=Value(0)),
+                When(name__istartswith=query, then=Value(1)),
+                When(name__icontains=query, then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by('rank', 'name')[:n]
+    )
+
+    companies = [
+        {
+            'id': encode_id(c.id),
+            'name': c.name,
+            'url': c.url,
+            'industry': c.industry or 'Unknown',
+        }
+        for c in results
+    ]
+
+    return JsonResponse({'query': query, 'results': companies})
 
 
 def api_semantic_search(request):
     import requests as http_requests
     from pgvector.django import CosineDistance
-    from django.conf import settings
 
     query = request.GET.get('q', '').strip()
     n = int(request.GET.get('n', 20))
@@ -142,7 +197,7 @@ def api_semantic_search(request):
 
     companies = [
         {
-            'id': emb.company.id,
+            'id': encode_id(emb.company.id),
             'name': emb.company.name,
             'url': emb.company.url,
             'industry': emb.company.industry or 'Unknown',
@@ -197,18 +252,20 @@ def api_atlas_data(request):
         'categoryLabels': category_labels,
         'names': [row[1] or '' for row in data],
         'industries': [row[4] or 'Unknown' for row in data],
-        'ids': [row[0] for row in data],
+        'ids': [encode_id(row[0]) for row in data],
     }
     return JsonResponse(result)
 
 
-def api_company_detail(request, company_id):
+def api_company_detail(request, token):
+    company_id = decode_id(token)
     company = get_object_or_404(Company, id=company_id)
     scraped = company.scraped_data.first()
     embedding = getattr(company, 'embedding', None)
+    props = getattr(company, 'properties', None)
 
     data = {
-        'id': company.id,
+        'id': encode_id(company.id),
         'name': company.name,
         'url': company.url,
         'website': company.website,
@@ -224,5 +281,76 @@ def api_company_detail(request, company_id):
         'has_embedding': embedding is not None,
         'cluster_id': embedding.cluster_id if embedding else None,
         'cluster_label': embedding.cluster_label if embedding else None,
+        'properties': {
+            'description': props.description,
+            'phone': props.phone,
+            'email': props.email,
+            'vat_number': props.vat_number,
+            'address': props.address,
+            'services': props.services,
+            'linkedin': props.linkedin,
+            'facebook': props.facebook,
+            'instagram': props.instagram,
+        } if props else None,
     }
     return JsonResponse(data)
+
+
+def serve_export(request, filename):
+    if not re.fullmatch(r'[A-Za-z0-9_]+\.csv', filename):
+        raise Http404
+    filepath = Path(settings.BASE_DIR) / 'exports' / filename
+    if not filepath.is_file():
+        raise Http404
+    return FileResponse(
+        open(filepath, 'rb'),
+        content_type='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
+@ensure_csrf_cookie
+def chat_view(request):
+    return render(request, 'core/chat.html')
+
+
+@require_POST
+def api_chat(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    messages = body.get('messages')
+    if not messages or not isinstance(messages, list):
+        return JsonResponse({'error': 'Missing messages array'}, status=400)
+
+    # Sanitize: only keep role and content from client messages
+    clean = []
+    for m in messages:
+        role = m.get('role')
+        content = m.get('content', '')
+        if role in ('user', 'assistant') and isinstance(content, str):
+            clean.append({'role': role, 'content': content})
+
+    if not clean:
+        return JsonResponse({'error': 'No valid messages'}, status=400)
+
+    from .services.chat import chat_stream
+
+    def event_stream():
+        try:
+            for event_type, data in chat_stream(clean):
+                payload = json.dumps(
+                    {'content': data} if event_type == 'token' else data,
+                    ensure_ascii=False, default=str,
+                )
+                yield f"event: {event_type}\ndata: {payload}\n\n"
+        except Exception:
+            logger.exception('Chat stream error')
+            yield f"event: error\ndata: {json.dumps({'error': 'Errore interno. Riprova.'})}\n\n"
+
+    resp = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    resp['Cache-Control'] = 'no-cache'
+    resp['X-Accel-Buffering'] = 'no'
+    return resp

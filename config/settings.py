@@ -148,4 +148,5 @@ CELERY_TASK_TIME_LIMIT = 7200
 
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
 OLLAMA_EMBED_MODEL = 'embeddinggemma'
+OLLAMA_CHAT_MODEL = os.environ.get('OLLAMA_CHAT_MODEL', 'qwen3:30b')
 EMBEDDING_DIMENSIONS = 768

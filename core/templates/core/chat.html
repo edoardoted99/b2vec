@@ -1,0 +1,679 @@
+{% extends "core/base.html" %}
+
+{% block extra_css %}
+<style>
+    body { padding-top: 56px; }
+    main.container-fluid { padding: 0 !important; }
+
+    #chat-wrap {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 56px);
+    }
+
+    #messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: .75rem;
+    }
+
+    .msg {
+        max-width: 720px;
+        width: 100%;
+        margin: 0 auto;
+        line-height: 1.55;
+    }
+    .msg-user {
+        background: #e3e8ef;
+        padding: .75rem 1rem;
+        border-radius: 1rem 1rem .25rem 1rem;
+        align-self: flex-end;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .msg-assistant {
+        padding: .75rem 0;
+    }
+    .msg-assistant a { color: #0d6efd; text-decoration: underline; }
+    .msg-assistant strong { font-weight: 600; }
+
+    /* Think block */
+    .think-block { margin-bottom: .5rem; }
+    .think-block summary {
+        cursor: pointer;
+        color: #868e96;
+        font-size: .8rem;
+        user-select: none;
+    }
+    .think-block summary:hover { color: #495057; }
+    .think-content {
+        color: #868e96;
+        font-size: .8rem;
+        line-height: 1.4;
+        padding: .25rem 0 .25rem .75rem;
+        border-left: 2px solid #dee2e6;
+        margin-top: .25rem;
+    }
+
+    /* Tool flash */
+    .tool-flash {
+        margin-bottom: .4rem;
+        font-size: .78rem;
+        color: #868e96;
+    }
+    .tool-flash .spinner-border {
+        width: .65rem;
+        height: .65rem;
+        border-width: .12em;
+        vertical-align: middle;
+    }
+    .tool-flash .tool-check {
+        color: #198754;
+        font-weight: 600;
+        margin-right: .15rem;
+    }
+
+    /* Company cards */
+    .company-cards { margin: .5rem 0; }
+    .company-card {
+        border: 1px solid #e9ecef;
+        transition: border-color .15s;
+    }
+    .company-card:hover { border-color: #adb5bd; }
+    .company-card .card-body { padding: .6rem .75rem; }
+    .company-card .company-name {
+        font-size: .9rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: #212529;
+    }
+    .company-card .company-name:hover { color: #0d6efd; }
+    .company-card .favicon { margin-right: .35rem; vertical-align: text-bottom; border-radius: 2px; }
+    .company-card .badge { font-size: .7rem; font-weight: 400; }
+    .company-card .company-meta { font-size: .78rem; color: #6c757d; }
+    .company-card .similarity { font-size: .78rem; color: #198754; font-weight: 500; }
+
+    /* Stats card */
+    .stats-card .stat-value { font-size: 1.5rem; font-weight: 600; color: #212529; margin-bottom: 0; }
+    .stats-card .stat-label { font-size: .78rem; color: #6c757d; }
+
+    /* Msg text */
+    .msg-text br + br { display: none; }
+
+    /* Typing indicator */
+    .typing { display: flex; gap: 4px; align-items: center; padding: .5rem 0; }
+    .typing .dot {
+        width: 8px; height: 8px; border-radius: 50%; background: #6c757d;
+        animation: bounce .6s infinite alternate;
+    }
+    .typing .dot:nth-child(2) { animation-delay: .2s; }
+    .typing .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce { to { transform: translateY(-6px); opacity: .4; } }
+
+    /* Suggestion chips */
+    #suggestions {
+        max-width: 720px;
+        margin: 2rem auto 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        justify-content: center;
+    }
+    .chip {
+        border: 1px solid #dee2e6;
+        background: #fff;
+        border-radius: 2rem;
+        padding: .4rem 1rem;
+        cursor: pointer;
+        font-size: .875rem;
+        transition: background .15s, border-color .15s;
+    }
+    .chip:hover { background: #e9ecef; border-color: #adb5bd; }
+
+    /* Welcome */
+    #welcome {
+        max-width: 720px;
+        margin: 0 auto;
+        text-align: center;
+        padding-top: 15vh;
+        color: #495057;
+    }
+    #welcome h2 { font-weight: 300; margin-bottom: .5rem; }
+
+    /* Input bar */
+    #input-bar {
+        border-top: 1px solid #dee2e6;
+        padding: .75rem 1rem;
+        background: #fff;
+    }
+    #input-row {
+        max-width: 720px;
+        margin: 0 auto;
+        display: flex;
+        gap: .5rem;
+    }
+    #user-input {
+        flex: 1;
+        border: 1px solid #ced4da;
+        border-radius: 1.5rem;
+        padding: .55rem 1rem;
+        font-size: .95rem;
+        outline: none;
+        resize: none;
+        max-height: 120px;
+        line-height: 1.4;
+    }
+    #user-input:focus { border-color: #86b7fe; box-shadow: 0 0 0 .2rem rgba(13,110,253,.15); }
+    #send-btn {
+        border: none;
+        background: #0d6efd;
+        color: #fff;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        align-self: flex-end;
+    }
+    #send-btn:disabled { background: #adb5bd; cursor: default; }
+    #send-btn svg { width: 18px; height: 18px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="chat-wrap">
+    <div id="messages">
+        <div id="welcome">
+            <h2>B2Vec</h2>
+            <p>Chiedimi qualsiasi cosa sulle aziende nel database.</p>
+            <div id="suggestions">
+                <span class="chip" data-q="Quante aziende ci sono nel database?">Statistiche generali</span>
+                <span class="chip" data-q="Cerca Accenture">Cerca un'azienda</span>
+                <span class="chip" data-q="Trova aziende di consulenza IT">Ricerca semantica</span>
+                <span class="chip" data-q="Dimmi tutto su Reply">Info su un'azienda</span>
+                <span class="chip" data-q="Aziende simili a Deloitte">Aziende simili</span>
+            </div>
+        </div>
+    </div>
+    <div id="input-bar">
+        <div id="input-row">
+            <textarea id="user-input" rows="1" placeholder="Scrivi un messaggio..."></textarea>
+            <button id="send-btn" title="Invia">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const messagesEl = document.getElementById('messages');
+    const input = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    let welcome = document.getElementById('welcome');
+    let history = [];
+    let busy = false;
+
+    // --- Helpers ---
+
+    function getCookie(name) {
+        const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return v ? v.pop() : '';
+    }
+
+    function esc(t) {
+        return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function renderMarkdown(text) {
+        return text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/`(.+?)`/g, '<code>$1</code>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function scrollBottom() {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+
+    // --- Tool flash helpers ---
+
+    function toolFlashLabel(tool, args) {
+        switch (tool) {
+            case 'search_by_name': return `Ricerca per nome: "${args.query || ''}"`;
+            case 'semantic_search': return `Ricerca semantica: "${args.query || ''}"`;
+            case 'get_company': return `Dettagli azienda: "${args.name || ''}"`;
+            case 'get_similar': return `Aziende simili a: "${args.name || ''}"`;
+            case 'get_stats': return 'Statistiche database';
+            case 'web_search': return `Ricerca web: "${args.query || ''}"`;
+            case 'export_contacts': return `Export contatti: "${args.query || ''}"`;
+            case 'run_sql': return `SQL: ${args.query || ''}`;
+            default: return tool;
+        }
+    }
+
+    function toolResultSummary(tool, data) {
+        if (data.error) return data.error;
+        switch (tool) {
+            case 'search_by_name':
+            case 'semantic_search': return `${data.count || 0} risultati`;
+            case 'get_similar': return `${data.count || 0} aziende simili`;
+            case 'get_company': return data.name || 'trovata';
+            case 'get_stats': return `${(data.total_companies || 0).toLocaleString()} aziende`;
+            case 'web_search': return `${data.count || 0} risultati`;
+            case 'export_contacts': return `${data.count || 0} aziende, ${data.with_email || 0} con email`;
+            case 'run_sql': return `${data.row_count || 0} righe`;
+            default: return '';
+        }
+    }
+
+    // --- Card renderers ---
+
+    function faviconUrl(website) {
+        if (!website) return '';
+        const domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        if (!domain) return '';
+        return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+    }
+
+    function faviconImg(website) {
+        const src = faviconUrl(website);
+        if (!src) return '';
+        return `<img src="${src}" width="16" height="16" class="favicon" alt="" onerror="this.style.display='none'">`;
+    }
+
+    function renderCompanyList(companies) {
+        if (!companies || !companies.length) return '';
+        let html = '<div class="company-cards"><div class="row g-2">';
+        for (const c of companies) {
+            html += `<div class="col-sm-6 col-lg-4">
+                <div class="card company-card h-100">
+                    <div class="card-body">
+                        <a href="${esc(c.link)}" class="company-name d-block mb-1">${faviconImg(c.website)}${esc(c.name)}</a>`;
+            if (c.industry && c.industry !== 'N/A')
+                html += `<span class="badge bg-secondary me-1">${esc(c.industry)}</span>`;
+            if (c.city && c.city !== 'N/A')
+                html += `<span class="company-meta">${esc(c.city)}</span>`;
+            if (c.similarity)
+                html += `<span class="similarity ms-1">${esc(c.similarity)}</span>`;
+            html += `</div></div></div>`;
+        }
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderCompanyDetail(d) {
+        if (d.error) return `<div class="alert alert-warning py-2 px-3 small">${esc(d.error)}</div>`;
+        let html = `<div class="card company-card my-1"><div class="card-body">`;
+        html += `<a href="${esc(d.link)}" class="company-name d-block mb-1" style="font-size:1rem">${faviconImg(d.website)}${esc(d.name)}</a>`;
+        if (d.description)
+            html += `<p class="small text-muted mb-2">${esc(d.description)}</p>`;
+        let meta = [];
+        if (d.industry) meta.push(d.industry);
+        if (d.city) meta.push(d.city);
+        if (d.size) meta.push(d.size);
+        if (d.founded) meta.push('Fondata: ' + d.founded);
+        if (meta.length)
+            html += `<div class="company-meta mb-1">${meta.map(esc).join(' &middot; ')}</div>`;
+        if (d.services && d.services.length)
+            html += `<div class="small mb-1"><strong>Servizi:</strong> ${d.services.map(esc).join(', ')}</div>`;
+        let contacts = [];
+        if (d.email) contacts.push(d.email);
+        if (d.phone) contacts.push(d.phone);
+        if (d.linkedin) contacts.push(`<a href="${esc(d.linkedin)}" target="_blank">LinkedIn</a>`);
+        if (contacts.length)
+            html += `<div class="small">${contacts.join(' &middot; ')}</div>`;
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderStats(d) {
+        if (d.error) return `<div class="alert alert-warning py-2 px-3 small">${esc(d.error)}</div>`;
+        let html = `<div class="card stats-card my-1"><div class="card-body">`;
+        html += `<div class="row text-center g-2 mb-2">`;
+        const stats = [
+            [d.total_companies, 'Aziende'],
+            [d.scraped, 'Scraped'],
+            [d.with_embeddings, 'Embeddings'],
+            [d.with_properties, 'Properties'],
+        ];
+        for (const [val, label] of stats) {
+            html += `<div class="col-6 col-md-3">
+                <div class="stat-value">${val != null ? val.toLocaleString() : '-'}</div>
+                <div class="stat-label">${label}</div>
+            </div>`;
+        }
+        html += '</div>';
+        if (d.top_industries && d.top_industries.length) {
+            html += '<div class="mb-1"><strong class="small">Top industrie</strong></div><div class="d-flex flex-wrap gap-1 mb-2">';
+            for (const ind of d.top_industries)
+                html += `<span class="badge bg-light text-dark border">${esc(ind.industry)} (${ind.count})</span>`;
+            html += '</div>';
+        }
+        if (d.top_cities && d.top_cities.length) {
+            html += '<div class="mb-1"><strong class="small">Top città</strong></div><div class="d-flex flex-wrap gap-1">';
+            for (const c of d.top_cities)
+                html += `<span class="badge bg-light text-dark border">${esc(c.city)} (${c.count})</span>`;
+            html += '</div>';
+        }
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderSqlResult(d) {
+        if (d.error) return `<div class="alert alert-warning py-2 px-3 small">${esc(d.error)}</div>`;
+        if (!d.results || !d.results.length) return '<div class="small text-muted">Nessun risultato.</div>';
+        let html = '<div class="table-responsive my-1"><table class="table table-sm table-bordered mb-0"><thead><tr>';
+        for (const col of d.columns)
+            html += `<th class="small text-nowrap">${esc(col)}</th>`;
+        html += '</tr></thead><tbody>';
+        for (const row of d.results) {
+            html += '<tr>';
+            for (const col of d.columns) {
+                const val = row[col];
+                html += `<td class="small">${val != null ? esc(String(val)) : '<span class="text-muted">NULL</span>'}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+        if (d.row_count >= 50) html += '<div class="small text-muted">Risultati limitati a 50 righe.</div>';
+        return html;
+    }
+
+    function renderWebResults(d) {
+        if (!d.results || !d.results.length) return '<div class="small text-muted">Nessun risultato web.</div>';
+        let html = '<div class="list-group list-group-flush my-1">';
+        for (const r of d.results) {
+            html += `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="list-group-item list-group-item-action py-2 px-3">
+                <div class="small fw-semibold">${faviconImg(r.url)}${esc(r.title)}</div>
+                <div class="small text-muted text-truncate">${esc(r.snippet)}</div>
+            </a>`;
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function renderExportResult(d) {
+        let html = `<div class="card my-1"><div class="card-body py-2 px-3">`;
+        html += `<div class="d-flex align-items-center gap-2 mb-2">`;
+        html += `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#198754" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+        html += `<strong class="small">Export completato</strong>`;
+        html += `</div>`;
+        html += `<div class="small mb-2">`;
+        html += `<span class="me-3">${d.count || 0} aziende trovate</span>`;
+        html += `<span class="me-3">${d.with_email || 0} con email</span>`;
+        html += `<span>${d.with_phone || 0} con telefono</span>`;
+        html += `</div>`;
+        if (d.download_url) {
+            html += `<a href="${esc(d.download_url)}" class="btn btn-sm btn-success" download>`;
+            html += `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+            html += `Scarica CSV</a>`;
+        }
+        html += `</div></div>`;
+        return html;
+    }
+
+    function renderToolResult(tool, data) {
+        if (data.error) return `<div class="alert alert-warning py-2 px-3 small">${esc(data.error)}</div>`;
+        switch (tool) {
+            case 'search_by_name': return renderCompanyList(data.results);
+            case 'semantic_search': return renderCompanyList(data.results);
+            case 'get_company': return renderCompanyDetail(data);
+            case 'get_similar': return renderCompanyList(data.similar);
+            case 'get_stats': return renderStats(data);
+            case 'web_search': return renderWebResults(data);
+            case 'export_contacts': return renderExportResult(data);
+            case 'run_sql': return renderSqlResult(data);
+            default: return '';
+        }
+    }
+
+    // --- Think block parser ---
+
+    function parseThinkAndContent(raw) {
+        let think = '', text = '', rest = raw;
+        while (rest) {
+            const s = rest.indexOf('<think>');
+            if (s === -1) { text += rest; break; }
+            text += rest.slice(0, s);
+            rest = rest.slice(s + 7);
+            const e = rest.indexOf('</think>');
+            if (e === -1) { think += rest; rest = ''; }
+            else { think += rest.slice(0, e); rest = rest.slice(e + 8); }
+        }
+        return { think: think.trim(), text: text.trim() };
+    }
+
+    // --- Message DOM ---
+
+    function removeWelcome() {
+        if (welcome) { welcome.remove(); welcome = null; }
+    }
+
+    function addUserMessage(text) {
+        removeWelcome();
+        const div = document.createElement('div');
+        div.className = 'msg msg-user';
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        scrollBottom();
+    }
+
+    function createAssistantMessage() {
+        removeWelcome();
+        const wrap = document.createElement('div');
+        wrap.className = 'msg msg-assistant';
+
+        const loader = document.createElement('div');
+        loader.className = 'typing';
+        loader.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+        wrap.appendChild(loader);
+
+        const thinkBlock = document.createElement('details');
+        thinkBlock.className = 'think-block';
+        thinkBlock.style.display = 'none';
+        thinkBlock.innerHTML = '<summary>Ragionamento</summary><div class="think-content"></div>';
+        wrap.appendChild(thinkBlock);
+
+        const toolArea = document.createElement('div');
+        toolArea.className = 'tool-area';
+        wrap.appendChild(toolArea);
+
+        const textArea = document.createElement('div');
+        textArea.className = 'msg-text';
+        wrap.appendChild(textArea);
+
+        messagesEl.appendChild(wrap);
+        scrollBottom();
+
+        return {
+            el: wrap,
+            loader,
+            thinkBlock,
+            thinkContent: thinkBlock.querySelector('.think-content'),
+            toolArea,
+            textArea,
+            _lastFlash: null,
+        };
+    }
+
+    function hideLoader(msg) {
+        if (msg.loader) { msg.loader.remove(); msg.loader = null; }
+    }
+
+    // --- Streaming send ---
+
+    async function send(text) {
+        if (busy || !text.trim()) return;
+        busy = true;
+        sendBtn.disabled = true;
+        input.value = '';
+        input.style.height = 'auto';
+
+        const userText = text.trim();
+        history.push({ role: 'user', content: userText });
+        addUserMessage(userText);
+
+        const msg = createAssistantMessage();
+        let rawContent = '';
+        let renderPending = false;
+
+        function scheduleRender() {
+            if (renderPending) return;
+            renderPending = true;
+            requestAnimationFrame(() => {
+                renderPending = false;
+                const { think, text: main } = parseThinkAndContent(rawContent);
+                if (think) {
+                    msg.thinkBlock.style.display = '';
+                    msg.thinkContent.innerHTML = renderMarkdown(think);
+                }
+                msg.textArea.innerHTML = renderMarkdown(main);
+                scrollBottom();
+            });
+        }
+
+        try {
+            const resp = await fetch('/api/chat/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({ messages: history }),
+            });
+
+            if (!resp.ok) {
+                hideLoader(msg);
+                const err = await resp.json().catch(() => ({}));
+                msg.textArea.textContent = 'Errore: ' + (err.error || resp.statusText);
+                busy = false;
+                sendBtn.disabled = false;
+                return;
+            }
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let sseBuffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                sseBuffer += decoder.decode(value, { stream: true });
+
+                // Parse complete SSE events (separated by \n\n)
+                let idx;
+                while ((idx = sseBuffer.indexOf('\n\n')) !== -1) {
+                    const block = sseBuffer.slice(0, idx);
+                    sseBuffer = sseBuffer.slice(idx + 2);
+
+                    let evType = 'message', evData = '';
+                    for (const line of block.split('\n')) {
+                        if (line.startsWith('event: ')) evType = line.slice(7);
+                        else if (line.startsWith('data: ')) evData = line.slice(6);
+                    }
+                    if (!evData) continue;
+
+                    let parsed;
+                    try { parsed = JSON.parse(evData); } catch { continue; }
+
+                    switch (evType) {
+                        case 'token':
+                            hideLoader(msg);
+                            rawContent += parsed.content || '';
+                            scheduleRender();
+                            break;
+
+                        case 'tool_call': {
+                            hideLoader(msg);
+                            const flash = document.createElement('div');
+                            flash.className = 'tool-flash';
+                            flash.innerHTML = `<span class="spinner-border me-1"></span>${esc(toolFlashLabel(parsed.tool, parsed.args || {}))}`;
+                            flash.dataset.tool = parsed.tool;
+                            msg.toolArea.appendChild(flash);
+                            msg._lastFlash = flash;
+                            scrollBottom();
+                            break;
+                        }
+
+                        case 'tool_result': {
+                            // Update flash: spinner → checkmark + summary
+                            const flash = msg._lastFlash;
+                            if (flash) {
+                                const summary = toolResultSummary(parsed.tool, parsed.data);
+                                const label = flash.textContent.replace(/^\s+/, '');
+                                flash.innerHTML = `<span class="tool-check">&#10003;</span>${esc(label)}` +
+                                    (summary ? ` &mdash; ${esc(summary)}` : '');
+                            }
+                            // Render cards
+                            const cardHtml = renderToolResult(parsed.tool, parsed.data);
+                            if (cardHtml) {
+                                msg.toolArea.insertAdjacentHTML('beforeend', cardHtml);
+                            }
+                            scrollBottom();
+                            break;
+                        }
+
+                        case 'done':
+                            // Final render
+                            scheduleRender();
+                            break;
+
+                        case 'error':
+                            hideLoader(msg);
+                            msg.textArea.textContent = 'Errore: ' + (parsed.error || 'Sconosciuto');
+                            break;
+                    }
+                }
+            }
+
+            // Strip think blocks from history content
+            const { text: cleanText } = parseThinkAndContent(rawContent);
+            history.push({ role: 'assistant', content: cleanText });
+
+        } catch (e) {
+            hideLoader(msg);
+            msg.textArea.textContent = 'Errore di connessione. Riprova.';
+        }
+
+        busy = false;
+        sendBtn.disabled = false;
+        input.focus();
+    }
+
+    // --- Events ---
+
+    sendBtn.addEventListener('click', () => send(input.value));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            send(input.value);
+        }
+    });
+    document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => send(chip.dataset.q));
+    });
+
+    input.focus();
+})();
+</script>
+{% endblock %}

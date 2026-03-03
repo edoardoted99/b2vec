@@ -54,6 +54,11 @@
                                 <td><a href="mailto:{{ properties.email }}">{{ properties.email }}</a></td>
                             </tr>
                             {% endif %}
+                            {% if not properties.phone and not properties.email %}
+                            <tr>
+                                <td colspan="2" class="text-muted">Telefono e email non presenti</td>
+                            </tr>
+                            {% endif %}
                             {% if properties and properties.vat_number %}
                             <tr>
                                 <th class="text-muted">P. IVA</th>
@@ -172,7 +177,7 @@
 {% if has_embedding %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/similar/{{ company.id }}/?n=10')
+    fetch('/api/similar/{{ token }}/?n=10')
         .then(r => r.json())
         .then(data => {
             const container = document.getElementById('similar-container');

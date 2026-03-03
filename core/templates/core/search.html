@@ -3,25 +3,28 @@
 {% block content %}
 <div class="row mt-3">
     <div class="col-lg-8 mx-auto">
-        <h2 class="mb-4">Semantic Search</h2>
+        <h2 class="mb-4">Search</h2>
 
         <form id="search-form" class="mb-4">
             <div class="input-group input-group-lg">
-                <input type="text" id="search-input" class="form-control" placeholder="e.g. logistica, software development, consulenza aziendale..." autofocus>
+                <input type="text" id="search-input" class="form-control" placeholder="Nome azienda, URL, oppure descrizione semantica..." autofocus>
                 <button type="submit" class="btn btn-primary">Search</button>
             </div>
         </form>
 
-        <div id="results-container" style="display:none;">
-            <h5 id="results-header" class="mb-3"></h5>
-            <div id="results-list"></div>
+        <div id="text-results" style="display:none;">
+            <h5 id="text-header" class="mb-3"></h5>
+            <div id="text-list"></div>
         </div>
 
-        <div id="loading" style="display:none;" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2 text-muted">Encoding query and searching...</p>
+        <div id="semantic-results" style="display:none;">
+            <h5 id="semantic-header" class="mb-3"></h5>
+            <div id="semantic-list"></div>
+        </div>
+
+        <div id="semantic-loading" style="display:none;" class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span class="ms-2 text-muted">Ricerca semantica in corso...</span>
         </div>
     </div>
 </div>
@@ -32,12 +35,14 @@
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('search-form');
     const input = document.getElementById('search-input');
-    const resultsContainer = document.getElementById('results-container');
-    const resultsList = document.getElementById('results-list');
-    const resultsHeader = document.getElementById('results-header');
-    const loading = document.getElementById('loading');
+    const textResults = document.getElementById('text-results');
+    const textList = document.getElementById('text-list');
+    const textHeader = document.getElementById('text-header');
+    const semanticResults = document.getElementById('semantic-results');
+    const semanticList = document.getElementById('semantic-list');
+    const semanticHeader = document.getElementById('semantic-header');
+    const semanticLoading = document.getElementById('semantic-loading');
 
-    // Pre-fill from URL query param
     const params = new URLSearchParams(window.location.search);
     if (params.get('q')) {
         input.value = params.get('q');
@@ -48,56 +53,72 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const query = input.value.trim();
         if (!query) return;
-        // Update URL without reload
         history.replaceState(null, '', `?q=${encodeURIComponent(query)}`);
         doSearch(query);
     });
 
-    function doSearch(query) {
-        loading.style.display = 'block';
-        resultsContainer.style.display = 'none';
-        resultsList.innerHTML = '';
+    function renderCard(r, showSimilarity) {
+        const card = document.createElement('div');
+        card.className = 'card mb-2';
+        let domain = '';
+        try { domain = r.url ? new URL(r.url).hostname : ''; } catch {}
+        card.innerHTML = `
+            <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    ${domain ? `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" width="20" height="20" class="rounded">` : ''}
+                    <div>
+                        <a href="/company/${r.id}/" class="fw-bold text-decoration-none">${r.name}</a>
+                        <span class="text-muted ms-2">${r.industry}</span>
+                        ${r.url ? `<br><small><a href="${r.url}" target="_blank" rel="noopener">${r.url}</a></small>` : ''}
+                    </div>
+                </div>
+                <div class="text-end">
+                    ${showSimilarity && r.similarity != null ? `<span class="badge bg-primary">${r.similarity}%</span>` : ''}
+                    ${r.x != null ? `<br><a href="/map/?highlight=${r.id}" class="small">Show on map</a>` : ''}
+                </div>
+            </div>
+        `;
+        return card;
+    }
 
+    function doSearch(query) {
+        // Reset
+        textResults.style.display = 'none';
+        textList.innerHTML = '';
+        semanticResults.style.display = 'none';
+        semanticList.innerHTML = '';
+        semanticLoading.style.display = 'block';
+
+        // Text search (instant)
+        fetch(`/api/text-search/?q=${encodeURIComponent(query)}&n=10`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    textHeader.textContent = `${data.results.length} match per nome/URL`;
+                    data.results.forEach(r => textList.appendChild(renderCard(r, false)));
+                    textResults.style.display = 'block';
+                }
+            })
+            .catch(() => {});
+
+        // Semantic search (slow)
         fetch(`/api/search/?q=${encodeURIComponent(query)}&n=20`)
             .then(r => r.json())
             .then(data => {
-                loading.style.display = 'none';
+                semanticLoading.style.display = 'none';
                 if (data.error) {
-                    resultsHeader.textContent = 'Error: ' + data.error;
-                    resultsContainer.style.display = 'block';
+                    semanticHeader.textContent = 'Errore: ' + data.error;
+                    semanticResults.style.display = 'block';
                     return;
                 }
-
-                resultsHeader.textContent = `${data.results.length} results for "${data.query}"`;
-                resultsContainer.style.display = 'block';
-
-                data.results.forEach(r => {
-                    const card = document.createElement('div');
-                    card.className = 'card mb-2';
-                    const domain = r.url ? new URL(r.url).hostname : '';
-                    card.innerHTML = `
-                        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
-                            <div class="d-flex align-items-center gap-2">
-                                ${domain ? `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" width="20" height="20" class="rounded">` : ''}
-                                <div>
-                                    <a href="/company/${r.id}/" class="fw-bold text-decoration-none">${r.name}</a>
-                                    <span class="text-muted ms-2">${r.industry}</span>
-                                    ${r.url ? `<br><small><a href="${r.url}" target="_blank" rel="noopener">${r.url}</a></small>` : ''}
-                                </div>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge bg-primary">${r.similarity}%</span>
-                                ${r.x != null ? `<br><a href="/map/?highlight=${r.id}" class="small">Show on map</a>` : ''}
-                            </div>
-                        </div>
-                    `;
-                    resultsList.appendChild(card);
-                });
+                semanticHeader.textContent = `${data.results.length} risultati semantici`;
+                data.results.forEach(r => semanticList.appendChild(renderCard(r, true)));
+                semanticResults.style.display = 'block';
             })
             .catch(() => {
-                loading.style.display = 'none';
-                resultsHeader.textContent = 'Search failed. Try again.';
-                resultsContainer.style.display = 'block';
+                semanticLoading.style.display = 'none';
+                semanticHeader.textContent = 'Ricerca semantica fallita.';
+                semanticResults.style.display = 'block';
             });
     }
 });
