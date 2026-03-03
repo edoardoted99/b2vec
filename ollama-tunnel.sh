@@ -39,7 +39,7 @@ sshpass -p "${OPENPORT_PASSWORD}" ssh \
     -o ServerAliveCountMax=3 \
     -p "$SSH_PORT" \
     -N -f \
-    -L "${LOCAL_PORT}:localhost:${REMOTE_PORT}" \
+    -L "0.0.0.0:${LOCAL_PORT}:localhost:${REMOTE_PORT}" \
     "$SSH_USER"
 
 echo "Tunnel active! Ollama reachable at http://localhost:${LOCAL_PORT}"
