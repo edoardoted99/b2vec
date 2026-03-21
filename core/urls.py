@@ -15,4 +15,7 @@ urlpatterns = [
     path('api/search/', views.api_semantic_search, name='api_semantic_search'),
     path('api/text-search/', views.api_text_search, name='api_text_search'),
     path('api/company/<str:token>/', views.api_company_detail, name='api_company_detail'),
+    path('api/company-detail/<str:token>/', views.api_company_detail, name='api_company_detail_alias'),
+    path('api/stats/', views.api_stats, name='api_stats'),
+    path('api/sql/', views.api_sql, name='api_sql'),
 ]

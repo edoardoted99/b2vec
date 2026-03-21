@@ -61,7 +61,26 @@ services:
       - certbot_conf:/etc/letsencrypt
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'"
 
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    volumes:
+      - open_webui_data:/app/backend/data
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11435
+      - WEBUI_SECRET_KEY=b2vec-openwebui-experiment
+      - ENABLE_SIGNUP=true
+      - DEFAULT_MODELS=qwen3.5:35b
+      - WEBUI_NAME=B2Vec
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - web
+    restart: unless-stopped
+
 volumes:
   static_files:
   certbot_www:
   certbot_conf:
+  open_webui_data:

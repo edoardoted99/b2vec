@@ -309,6 +309,24 @@ def serve_export(request, filename):
     )
 
 
+def api_stats(request):
+    from .services.chat import _exec_get_stats
+    return JsonResponse(_exec_get_stats())
+
+
+@require_POST
+def api_sql(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    query = body.get('query', '').strip()
+    if not query:
+        return JsonResponse({'error': 'Missing query'}, status=400)
+    from .services.chat import _exec_run_sql
+    return JsonResponse(_exec_run_sql(query))
+
+
 @ensure_csrf_cookie
 def chat_view(request):
     return render(request, 'core/chat.html')
