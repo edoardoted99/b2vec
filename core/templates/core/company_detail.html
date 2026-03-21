@@ -39,12 +39,12 @@
         <div class="row g-4">
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header">Contatti</div>
+                    <div class="card-header">Contacts</div>
                     <div class="card-body">
                         <table class="table table-sm mb-0">
                             {% if properties and properties.phone %}
                             <tr>
-                                <th class="text-muted" style="width:120px">Telefono</th>
+                                <th class="text-muted" style="width:120px">Phone</th>
                                 <td><a href="tel:{{ properties.phone }}">{{ properties.phone }}</a></td>
                             </tr>
                             {% endif %}
@@ -56,29 +56,29 @@
                             {% endif %}
                             {% if not properties.phone and not properties.email %}
                             <tr>
-                                <td colspan="2" class="text-muted">Telefono e email non presenti</td>
+                                <td colspan="2" class="text-muted">Phone and email not available</td>
                             </tr>
                             {% endif %}
                             {% if properties and properties.vat_number %}
                             <tr>
-                                <th class="text-muted">P. IVA</th>
+                                <th class="text-muted">VAT Number</th>
                                 <td>{{ properties.vat_number }}</td>
                             </tr>
                             {% endif %}
                             {% if properties and properties.address %}
                             <tr>
-                                <th class="text-muted">Indirizzo</th>
+                                <th class="text-muted">Address</th>
                                 <td>{{ properties.address }}</td>
                             </tr>
                             {% elif company.city %}
                             <tr>
-                                <th class="text-muted">Sede</th>
+                                <th class="text-muted">Location</th>
                                 <td>{{ company.city }}{% if company.state %}, {{ company.state }}{% endif %}</td>
                             </tr>
                             {% endif %}
                             {% if company.website %}
                             <tr>
-                                <th class="text-muted">Sito web</th>
+                                <th class="text-muted">Website</th>
                                 <td><a href="http://{{ company.website }}" target="_blank" rel="noopener">{{ company.website }}</a></td>
                             </tr>
                             {% endif %}
@@ -99,7 +99,7 @@
                             {% endif %}
                         {% endif %}
                         {% if not properties %}
-                            <p class="text-muted mb-0">Proprietà non ancora estratte.</p>
+                            <p class="text-muted mb-0">Properties not yet extracted.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -107,30 +107,30 @@
 
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header">Info azienda</div>
+                    <div class="card-header">Company Info</div>
                     <div class="card-body">
                         <table class="table table-sm mb-0">
                             {% if company.type %}
                             <tr>
-                                <th class="text-muted" style="width:120px">Tipo</th>
+                                <th class="text-muted" style="width:120px">Type</th>
                                 <td>{{ company.type }}</td>
                             </tr>
                             {% endif %}
                             {% if company.size %}
                             <tr>
-                                <th class="text-muted">Dimensione</th>
+                                <th class="text-muted">Size</th>
                                 <td>{{ company.size }}</td>
                             </tr>
                             {% endif %}
                             {% if company.founded %}
                             <tr>
-                                <th class="text-muted">Fondata</th>
+                                <th class="text-muted">Founded</th>
                                 <td>{{ company.founded }}</td>
                             </tr>
                             {% endif %}
                             {% if company.city %}
                             <tr>
-                                <th class="text-muted">Sede</th>
+                                <th class="text-muted">Location</th>
                                 <td>{{ company.city }}{% if company.state %}, {{ company.state }}{% endif %}{% if company.country_code %} ({{ company.country_code }}){% endif %}</td>
                             </tr>
                             {% endif %}
@@ -148,7 +148,7 @@
 
         {% if properties and properties.services %}
         <div class="card mt-4">
-            <div class="card-header">Servizi / Prodotti</div>
+            <div class="card-header">Services / Products</div>
             <div class="card-body">
                 {% for service in properties.services %}
                     <span class="badge bg-light text-dark border me-1 mb-1 fs-6 fw-normal">{{ service }}</span>
@@ -159,11 +159,11 @@
 
         {% if has_embedding %}
         <div class="card mt-4">
-            <div class="card-header">Aziende simili</div>
+            <div class="card-header">Similar Companies</div>
             <div class="card-body p-0" id="similar-container">
                 <div class="text-center py-3">
                     <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                    <span class="ms-2 text-muted">Caricamento...</span>
+                    <span class="ms-2 text-muted">Loading...</span>
                 </div>
             </div>
         </div>
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             const container = document.getElementById('similar-container');
             if (!data.similar || data.similar.length === 0) {
-                container.innerHTML = '<p class="text-muted p-3 mb-0">Nessuna azienda simile trovata.</p>';
+                container.innerHTML = '<p class="text-muted p-3 mb-0">No similar companies found.</p>';
                 return;
             }
             let html = '<ul class="list-group list-group-flush">';
@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(() => {
             document.getElementById('similar-container').innerHTML =
-                '<p class="text-muted p-3 mb-0">Errore nel caricamento.</p>';
+                '<p class="text-muted p-3 mb-0">Error loading data.</p>';
         });
 });
 </script>

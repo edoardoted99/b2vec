@@ -348,7 +348,7 @@ def api_chat(request):
                 yield f"event: {event_type}\ndata: {payload}\n\n"
         except Exception:
             logger.exception('Chat stream error')
-            yield f"event: error\ndata: {json.dumps({'error': 'Errore interno. Riprova.'})}\n\n"
+            yield f"event: error\ndata: {json.dumps({'error': 'Internal error. Please try again.'})}\n\n"
 
     resp = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
     resp['Cache-Control'] = 'no-cache'

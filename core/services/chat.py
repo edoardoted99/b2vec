@@ -20,33 +20,33 @@ logger = logging.getLogger(__name__)
 MAX_TOOL_ROUNDS = 5
 
 SYSTEM_PROMPT = """\
-Sei un assistente esperto del database aziendale B2Vec. \
-Il database contiene aziende italiane ed europee con informazioni su industria, \
-dimensione, località, servizi, descrizione e embedding semantici.
+You are an expert assistant for the B2Vec company database. \
+The database contains Italian and European companies with information about industry, \
+size, location, services, description and semantic embeddings.
 
-REGOLA FONDAMENTALE: LEGGI ATTENTAMENTE i risultati JSON restituiti dai tool. \
-Basa la tua risposta SOLO sui dati reali presenti nei risultati. \
-NON inventare mai nomi di aziende, dati o dettagli che non compaiono nei risultati. \
-I risultati vengono mostrati all'utente come schede grafiche, quindi nella tua risposta \
-fornisci solo un breve commento basato sui NOMI e INDUSTRIE reali che vedi nei risultati.
+FUNDAMENTAL RULE: READ CAREFULLY the JSON results returned by tools. \
+Base your answer ONLY on real data present in the results. \
+NEVER make up company names, data or details that do not appear in the results. \
+Results are shown to the user as visual cards, so in your response \
+provide only a brief comment based on the REAL NAMES and INDUSTRIES you see in the results.
 
-STRATEGIA DI RICERCA — se un tool restituisce 0 risultati o risultati non pertinenti, NON arrenderti:
-- Se search_by_name fallisce, estrai il dominio dall'URL (es. "hackability" da "https://hackability.it") e riprova, oppure usa semantic_search.
-- Se semantic_search dà risultati non pertinenti (es. cerchi formaggi ma trovi consulenza), dillo e prova varianti o web_search.
-- Se l'utente fornisce un URL, cerca anche per dominio/nome del sito.
-- Usa web_search per cercare su internet informazioni non presenti nel database.
-- Puoi chiamare più tool in sequenza fino a trovare una risposta soddisfacente.
+SEARCH STRATEGY — if a tool returns 0 results or irrelevant results, DO NOT give up:
+- If search_by_name fails, extract the domain from the URL (e.g. "hackability" from "https://hackability.it") and retry, or use semantic_search.
+- If semantic_search gives irrelevant results (e.g. you search for cheese but find consulting), say so and try variants or web_search.
+- If the user provides a URL, also search by domain/site name.
+- Use web_search to find information on the internet not present in the database.
+- You can call multiple tools in sequence until you find a satisfactory answer.
 
-CONTATTI: quando l'utente chiede email, telefoni o contatti di aziende per settore/attività, \
-usa semantic_search con include_contacts=true. Questo restituisce email, telefono e descrizione per ogni risultato.
+CONTACTS: when the user asks for emails, phones or contacts of companies by sector/activity, \
+use semantic_search with include_contacts=true. This returns email, phone and description for each result.
 
-EXPORT: quando l'utente vuole esportare, scaricare o ottenere un file con una lista di contatti/email/telefoni, \
-usa export_contacts. Questo genera un file CSV scaricabile con i contatti delle aziende trovate per similarità semantica.
+EXPORT: when the user wants to export, download or get a file with a list of contacts/emails/phones, \
+use export_contacts. This generates a downloadable CSV file with contacts of companies found by semantic similarity.
 
-SQL: usa run_sql per domande quantitative precise (conteggi, aggregazioni, filtri specifici). \
-Il campo "size" contiene range testuali come '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5001-10000', '10001+'.
+SQL: use run_sql for precise quantitative questions (counts, aggregations, specific filters). \
+The "size" field contains text ranges like '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5001-10000', '10001+'.
 
-Rispondi in italiano se l'utente scrive in italiano, altrimenti in inglese."""
+Reply in the same language as the user."""
 
 TOOLS = [
     {
@@ -425,7 +425,7 @@ def _exec_web_search(query: str, limit: int = 5) -> dict:
         )
         resp.raise_for_status()
     except Exception as e:
-        return {"error": f"Ricerca web fallita: {e}"}
+        return {"error": f"Web search failed: {e}"}
 
     html = resp.text
     links = re.findall(r'class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>', html)
@@ -453,10 +453,10 @@ _FORBIDDEN_SQL = re.compile(
 def _exec_run_sql(query: str) -> dict:
     normalized = ' '.join(query.split())
     if not normalized.lstrip('( ').upper().startswith('SELECT'):
-        return {"error": "Solo query SELECT sono permesse."}
+        return {"error": "Only SELECT queries are allowed."}
 
     if _FORBIDDEN_SQL.search(normalized):
-        return {"error": "La query contiene keyword non permesse."}
+        return {"error": "The query contains forbidden keywords."}
 
     if 'LIMIT' not in normalized.upper():
         query = normalized.rstrip(';') + ' LIMIT 50'
@@ -466,13 +466,13 @@ def _exec_run_sql(query: str) -> dict:
         with connection.cursor() as cursor:
             cursor.execute(query)
             if cursor.description is None:
-                return {"error": "La query non ha restituito colonne."}
+                return {"error": "The query returned no columns."}
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchmany(50)
         results = [dict(zip(columns, row)) for row in rows]
         return {"columns": columns, "row_count": len(results), "results": results}
     except Exception as e:
-        return {"error": f"Errore SQL: {e}"}
+        return {"error": f"SQL error: {e}"}
 
 
 def _exec_export_contacts(query: str, min_similarity: int = 60, limit: int = 200) -> dict:
@@ -641,5 +641,5 @@ def chat_stream(messages: list[dict]):
             full_messages.append({"role": "tool", "content": result_str})
 
     # Exhausted rounds
-    yield ("token", "Mi dispiace, non sono riuscito a completare la ricerca. Riprova con una domanda più semplice.")
+    yield ("token", "Sorry, I couldn't complete the search. Please try again with a simpler question.")
     yield ("done", "")

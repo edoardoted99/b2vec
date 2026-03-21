@@ -192,20 +192,20 @@
     <div id="messages">
         <div id="welcome">
             <h2>B2Vec</h2>
-            <p>Chiedimi qualsiasi cosa sulle aziende nel database.</p>
+            <p>Ask me anything about the companies in the database.</p>
             <div id="suggestions">
-                <span class="chip" data-q="Quante aziende ci sono nel database?">Statistiche generali</span>
-                <span class="chip" data-q="Cerca Accenture">Cerca un'azienda</span>
-                <span class="chip" data-q="Trova aziende di consulenza IT">Ricerca semantica</span>
-                <span class="chip" data-q="Dimmi tutto su Reply">Info su un'azienda</span>
-                <span class="chip" data-q="Aziende simili a Deloitte">Aziende simili</span>
+                <span class="chip" data-q="How many companies are in the database?">General statistics</span>
+                <span class="chip" data-q="Search Accenture">Search a company</span>
+                <span class="chip" data-q="Find IT consulting companies">Semantic search</span>
+                <span class="chip" data-q="Tell me about Reply">Company info</span>
+                <span class="chip" data-q="Companies similar to Deloitte">Similar companies</span>
             </div>
         </div>
     </div>
     <div id="input-bar">
         <div id="input-row">
-            <textarea id="user-input" rows="1" placeholder="Scrivi un messaggio..."></textarea>
-            <button id="send-btn" title="Invia">
+            <textarea id="user-input" rows="1" placeholder="Type a message..."></textarea>
+            <button id="send-btn" title="Send">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
         </div>
@@ -258,13 +258,14 @@
 
     function toolFlashLabel(tool, args) {
         switch (tool) {
-            case 'search_by_name': return `Ricerca per nome: "${args.query || ''}"`;
-            case 'semantic_search': return `Ricerca semantica: "${args.query || ''}"`;
-            case 'get_company': return `Dettagli azienda: "${args.name || ''}"`;
-            case 'get_similar': return `Aziende simili a: "${args.name || ''}"`;
-            case 'get_stats': return 'Statistiche database';
-            case 'web_search': return `Ricerca web: "${args.query || ''}"`;
-            case 'export_contacts': return `Export contatti: "${args.query || ''}"`;
+            case 'search_by_name': return `Name search: "${args.query || ''}"`;
+            case 'semantic_search': return `Semantic search: "${args.query || ''}"`;
+            case 'get_company': return `Company details: "${args.name || ''}"`;
+            case 'get_similar': return `Similar to: "${args.name || ''}"`;
+            case 'get_stats': return 'Database statistics';
+            case 'web_search': return `Web search: "${args.query || ''}"`;
+            case 'export_contacts': return `Export contacts: "${args.query || ''}"`;
+
             case 'run_sql': return `SQL: ${args.query || ''}`;
             default: return tool;
         }
@@ -274,13 +275,13 @@
         if (data.error) return data.error;
         switch (tool) {
             case 'search_by_name':
-            case 'semantic_search': return `${data.count || 0} risultati`;
-            case 'get_similar': return `${data.count || 0} aziende simili`;
-            case 'get_company': return data.name || 'trovata';
-            case 'get_stats': return `${(data.total_companies || 0).toLocaleString()} aziende`;
-            case 'web_search': return `${data.count || 0} risultati`;
-            case 'export_contacts': return `${data.count || 0} aziende, ${data.with_email || 0} con email`;
-            case 'run_sql': return `${data.row_count || 0} righe`;
+            case 'semantic_search': return `${data.count || 0} results`;
+            case 'get_similar': return `${data.count || 0} similar companies`;
+            case 'get_company': return data.name || 'found';
+            case 'get_stats': return `${(data.total_companies || 0).toLocaleString()} companies`;
+            case 'web_search': return `${data.count || 0} results`;
+            case 'export_contacts': return `${data.count || 0} companies, ${data.with_email || 0} with email`;
+            case 'run_sql': return `${data.row_count || 0} rows`;
             default: return '';
         }
     }
@@ -330,11 +331,11 @@
         if (d.industry) meta.push(d.industry);
         if (d.city) meta.push(d.city);
         if (d.size) meta.push(d.size);
-        if (d.founded) meta.push('Fondata: ' + d.founded);
+        if (d.founded) meta.push('Founded: ' + d.founded);
         if (meta.length)
             html += `<div class="company-meta mb-1">${meta.map(esc).join(' &middot; ')}</div>`;
         if (d.services && d.services.length)
-            html += `<div class="small mb-1"><strong>Servizi:</strong> ${d.services.map(esc).join(', ')}</div>`;
+            html += `<div class="small mb-1"><strong>Services:</strong> ${d.services.map(esc).join(', ')}</div>`;
         let contacts = [];
         if (d.email) contacts.push(d.email);
         if (d.phone) contacts.push(d.phone);
@@ -350,7 +351,7 @@
         let html = `<div class="card stats-card my-1"><div class="card-body">`;
         html += `<div class="row text-center g-2 mb-2">`;
         const stats = [
-            [d.total_companies, 'Aziende'],
+            [d.total_companies, 'Companies'],
             [d.scraped, 'Scraped'],
             [d.with_embeddings, 'Embeddings'],
             [d.with_properties, 'Properties'],
@@ -363,13 +364,13 @@
         }
         html += '</div>';
         if (d.top_industries && d.top_industries.length) {
-            html += '<div class="mb-1"><strong class="small">Top industrie</strong></div><div class="d-flex flex-wrap gap-1 mb-2">';
+            html += '<div class="mb-1"><strong class="small">Top industries</strong></div><div class="d-flex flex-wrap gap-1 mb-2">';
             for (const ind of d.top_industries)
                 html += `<span class="badge bg-light text-dark border">${esc(ind.industry)} (${ind.count})</span>`;
             html += '</div>';
         }
         if (d.top_cities && d.top_cities.length) {
-            html += '<div class="mb-1"><strong class="small">Top città</strong></div><div class="d-flex flex-wrap gap-1">';
+            html += '<div class="mb-1"><strong class="small">Top cities</strong></div><div class="d-flex flex-wrap gap-1">';
             for (const c of d.top_cities)
                 html += `<span class="badge bg-light text-dark border">${esc(c.city)} (${c.count})</span>`;
             html += '</div>';
@@ -380,7 +381,7 @@
 
     function renderSqlResult(d) {
         if (d.error) return `<div class="alert alert-warning py-2 px-3 small">${esc(d.error)}</div>`;
-        if (!d.results || !d.results.length) return '<div class="small text-muted">Nessun risultato.</div>';
+        if (!d.results || !d.results.length) return '<div class="small text-muted">No results.</div>';
         let html = '<div class="table-responsive my-1"><table class="table table-sm table-bordered mb-0"><thead><tr>';
         for (const col of d.columns)
             html += `<th class="small text-nowrap">${esc(col)}</th>`;
@@ -394,12 +395,12 @@
             html += '</tr>';
         }
         html += '</tbody></table></div>';
-        if (d.row_count >= 50) html += '<div class="small text-muted">Risultati limitati a 50 righe.</div>';
+        if (d.row_count >= 50) html += '<div class="small text-muted">Results limited to 50 rows.</div>';
         return html;
     }
 
     function renderWebResults(d) {
-        if (!d.results || !d.results.length) return '<div class="small text-muted">Nessun risultato web.</div>';
+        if (!d.results || !d.results.length) return '<div class="small text-muted">No web results.</div>';
         let html = '<div class="list-group list-group-flush my-1">';
         for (const r of d.results) {
             html += `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="list-group-item list-group-item-action py-2 px-3">
@@ -415,17 +416,17 @@
         let html = `<div class="card my-1"><div class="card-body py-2 px-3">`;
         html += `<div class="d-flex align-items-center gap-2 mb-2">`;
         html += `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#198754" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
-        html += `<strong class="small">Export completato</strong>`;
+        html += `<strong class="small">Export completed</strong>`;
         html += `</div>`;
         html += `<div class="small mb-2">`;
-        html += `<span class="me-3">${d.count || 0} aziende trovate</span>`;
-        html += `<span class="me-3">${d.with_email || 0} con email</span>`;
-        html += `<span>${d.with_phone || 0} con telefono</span>`;
+        html += `<span class="me-3">${d.count || 0} companies found</span>`;
+        html += `<span class="me-3">${d.with_email || 0} with email</span>`;
+        html += `<span>${d.with_phone || 0} with phone</span>`;
         html += `</div>`;
         if (d.download_url) {
             html += `<a href="${esc(d.download_url)}" class="btn btn-sm btn-success" download>`;
             html += `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
-            html += `Scarica CSV</a>`;
+            html += `Download CSV</a>`;
         }
         html += `</div></div>`;
         return html;
@@ -490,7 +491,7 @@
         const thinkBlock = document.createElement('details');
         thinkBlock.className = 'think-block';
         thinkBlock.style.display = 'none';
-        thinkBlock.innerHTML = '<summary>Ragionamento</summary><div class="think-content"></div>';
+        thinkBlock.innerHTML = '<summary>Reasoning</summary><div class="think-content"></div>';
         wrap.appendChild(thinkBlock);
 
         const toolArea = document.createElement('div');
@@ -564,7 +565,7 @@
             if (!resp.ok) {
                 hideLoader(msg);
                 const err = await resp.json().catch(() => ({}));
-                msg.textArea.textContent = 'Errore: ' + (err.error || resp.statusText);
+                msg.textArea.textContent = 'Error: ' + (err.error || resp.statusText);
                 busy = false;
                 sendBtn.disabled = false;
                 return;
@@ -640,7 +641,7 @@
 
                         case 'error':
                             hideLoader(msg);
-                            msg.textArea.textContent = 'Errore: ' + (parsed.error || 'Sconosciuto');
+                            msg.textArea.textContent = 'Error: ' + (parsed.error || 'Unknown');
                             break;
                     }
                 }
@@ -652,7 +653,7 @@
 
         } catch (e) {
             hideLoader(msg);
-            msg.textArea.textContent = 'Errore di connessione. Riprova.';
+            msg.textArea.textContent = 'Connection error. Please try again.';
         }
 
         busy = false;

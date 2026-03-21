@@ -36,7 +36,7 @@
     <div id="controls">
         <div class="d-flex align-items-center gap-2">
             <select id="industry-filter" class="form-select form-select-sm" style="width:220px">
-                <option value="">Tutte le industry</option>
+                <option value="">All industries</option>
             </select>
             <span id="point-count" class="text-muted small"></span>
         </div>
@@ -54,7 +54,7 @@
             </div>
             <div id="sidebar-company" class="p-3 border-bottom" style="display:none"></div>
             <div class="card-body p-0">
-                <div class="px-3 pt-2 pb-1"><small class="text-muted fw-bold">AZIENDE SIMILI</small></div>
+                <div class="px-3 pt-2 pb-1"><small class="text-muted fw-bold">SIMILAR COMPANIES</small></div>
                 <ul id="similar-list" class="list-group list-group-flush"></ul>
             </div>
         </div>
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedId = null;
         similarIds.clear();
         sidebar.classList.remove('show');
-        pointCount.textContent = `${filteredCompanies.length} aziende`;
+        pointCount.textContent = `${filteredCompanies.length} companies`;
         renderPlot();
     });
 
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(data => {
             allCompanies = data.companies;
             filteredCompanies = allCompanies;
-            pointCount.textContent = `${allCompanies.length} aziende`;
+            pointCount.textContent = `${allCompanies.length} companies`;
 
             // Populate industry filter
             const industries = {};
@@ -151,9 +151,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const companies = filteredCompanies;
 
         if (selectedId !== null) {
-            const other = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: [], size: 5, opacity: 0.3 }, name: 'Altre', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
-            const sim = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: 'rgba(255,99,71,0.9)', size: 10 }, name: 'Simili', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
-            const sel = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: 'rgba(34,197,94,1)', size: 14, symbol: 'star' }, name: 'Selezionata', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
+            const other = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: [], size: 5, opacity: 0.3 }, name: 'Others', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
+            const sim = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: 'rgba(255,99,71,0.9)', size: 10 }, name: 'Similar', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
+            const sel = { x: [], y: [], text: [], ids: [], customdata: [], marker: { color: 'rgba(34,197,94,1)', size: 14, symbol: 'star' }, name: 'Selected', mode: 'markers', type: 'scatter', hoverinfo: 'text' };
 
             companies.forEach(c => {
                 const label = hoverText(c);
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="badge bg-primary">${company.industry || 'Unknown'}</span>
             </div>
             ${company.description ? `<p class="mb-2 small">${truncate(company.description, 200)}</p>` : ''}
-            <a href="/company/${compId}/" class="btn btn-sm btn-outline-dark">Apri profilo</a>
+            <a href="/company/${compId}/" class="btn btn-sm btn-outline-dark">View profile</a>
         `;
 
         similarList.innerHTML = '';

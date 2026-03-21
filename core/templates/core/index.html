@@ -4,13 +4,13 @@
 <div class="row mt-4">
     <div class="col-lg-8 mx-auto text-center">
         <h1 class="mb-3">B2Vec</h1>
-        <p class="text-muted mb-4">Cerca aziende italiane per significato, non per parole chiave.</p>
-        <p class="text-muted small mb-4">Al momento il database contiene solo aziende con sede in Italia.</p>
+        <p class="text-muted mb-4">Search companies by meaning, not by keywords.</p>
+        <p class="text-muted small mb-4">The database currently contains only companies based in Italy.</p>
 
         <form action="{% url 'search_view' %}" method="get" class="mb-5">
             <div class="input-group input-group-lg">
-                <input type="text" name="q" class="form-control" placeholder="es. automazione industriale, consulenza IT, produzione alimentare..." autofocus>
-                <button type="submit" class="btn btn-primary">Cerca</button>
+                <input type="text" name="q" class="form-control" placeholder="e.g. industrial automation, IT consulting, food production..." autofocus>
+                <button type="submit" class="btn btn-primary">Search</button>
             </div>
         </form>
     </div>
@@ -21,7 +21,7 @@
         <div class="card text-white bg-primary h-100">
             <div class="card-body text-center">
                 <div class="fs-2 fw-bold">{{ total_companies|default:"0" }}</div>
-                <small>Aziende</small>
+                <small>Companies</small>
             </div>
         </div>
     </div>
@@ -45,7 +45,7 @@
         <div class="card text-white bg-info h-100">
             <div class="card-body text-center">
                 <div class="fs-2 fw-bold">{{ properties_count|default:"0" }}</div>
-                <small>Profili estratti</small>
+                <small>Extracted profiles</small>
             </div>
         </div>
     </div>

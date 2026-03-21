@@ -7,7 +7,7 @@
 
         <form id="search-form" class="mb-4">
             <div class="input-group input-group-lg">
-                <input type="text" id="search-input" class="form-control" placeholder="Nome azienda, URL, oppure descrizione semantica..." autofocus>
+                <input type="text" id="search-input" class="form-control" placeholder="Company name, URL, or semantic description..." autofocus>
                 <button type="submit" class="btn btn-primary">Search</button>
             </div>
         </form>
@@ -24,7 +24,7 @@
 
         <div id="semantic-loading" style="display:none;" class="text-center py-3">
             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-            <span class="ms-2 text-muted">Ricerca semantica in corso...</span>
+            <span class="ms-2 text-muted">Semantic search in progress...</span>
         </div>
     </div>
 </div>
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(r => r.json())
             .then(data => {
                 if (data.results && data.results.length > 0) {
-                    textHeader.textContent = `${data.results.length} match per nome/URL`;
+                    textHeader.textContent = `${data.results.length} name/URL matches`;
                     data.results.forEach(r => textList.appendChild(renderCard(r, false)));
                     textResults.style.display = 'block';
                 }
@@ -107,17 +107,17 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 semanticLoading.style.display = 'none';
                 if (data.error) {
-                    semanticHeader.textContent = 'Errore: ' + data.error;
+                    semanticHeader.textContent = 'Error: ' + data.error;
                     semanticResults.style.display = 'block';
                     return;
                 }
-                semanticHeader.textContent = `${data.results.length} risultati semantici`;
+                semanticHeader.textContent = `${data.results.length} semantic results`;
                 data.results.forEach(r => semanticList.appendChild(renderCard(r, true)));
                 semanticResults.style.display = 'block';
             })
             .catch(() => {
                 semanticLoading.style.display = 'none';
-                semanticHeader.textContent = 'Ricerca semantica fallita.';
+                semanticHeader.textContent = 'Semantic search failed.';
                 semanticResults.style.display = 'block';
             });
     }
