@@ -593,6 +593,8 @@ def chat_stream(messages: list[dict]):
             },
             timeout=120,
         )
+        if resp.status_code != 200:
+            logger.error("Ollama error %s: %s", resp.status_code, resp.text[:500])
         resp.raise_for_status()
         assistant_msg = resp.json().get("message", {})
         tool_calls = assistant_msg.get("tool_calls")
