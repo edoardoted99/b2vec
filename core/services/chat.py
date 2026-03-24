@@ -577,42 +577,69 @@ def execute_tool(name: str, arguments: dict) -> str:
         return json.dumps({"error": f"Tool execution failed: {str(e)}"})
 
 
+def _ollama_post(url, payload, stream=False, retries=2):
+    """POST to Ollama with retry on transient errors."""
+    for attempt in range(retries + 1):
+        try:
+            resp = http_requests.post(url, json=payload, stream=stream, timeout=120)
+            if resp.status_code == 200:
+                return resp
+            body = resp.text[:500] if not stream else "(stream)"
+            logger.error("Ollama error %s (attempt %d): %s", resp.status_code, attempt + 1, body)
+            if attempt < retries:
+                time.sleep(1)
+                continue
+            resp.raise_for_status()
+        except http_requests.exceptions.ConnectionError as e:
+            logger.error("Ollama connection error (attempt %d): %s", attempt + 1, e)
+            if attempt < retries:
+                time.sleep(1)
+                continue
+            raise
+    return resp
+
+
+def _clean_assistant_msg(msg):
+    """Strip non-standard fields from assistant message before sending back to Ollama."""
+    cleaned = {"role": msg["role"], "content": msg.get("content", "")}
+    if msg.get("tool_calls"):
+        cleaned["tool_calls"] = [
+            {"function": {"name": tc["function"]["name"], "arguments": tc["function"].get("arguments", {})}}
+            for tc in msg["tool_calls"]
+        ]
+    return cleaned
+
+
 def chat_stream(messages: list[dict]):
     """Generator yielding (event_type, data) tuples. Streams the final response token-by-token."""
     full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
 
     for _round in range(MAX_TOOL_ROUNDS):
         # Non-streaming call to detect tool_calls
-        resp = http_requests.post(
+        resp = _ollama_post(
             f"{settings.OLLAMA_BASE_URL}/api/chat",
-            json={
+            {
                 "model": settings.OLLAMA_CHAT_MODEL,
                 "messages": full_messages,
                 "tools": TOOLS,
                 "stream": False,
             },
-            timeout=120,
         )
-        if resp.status_code != 200:
-            logger.error("Ollama error %s: %s", resp.status_code, resp.text[:500])
-        resp.raise_for_status()
         assistant_msg = resp.json().get("message", {})
         tool_calls = assistant_msg.get("tool_calls")
 
         if not tool_calls:
             # No tools — re-call with streaming for token-by-token output
-            stream_resp = http_requests.post(
+            stream_resp = _ollama_post(
                 f"{settings.OLLAMA_BASE_URL}/api/chat",
-                json={
+                {
                     "model": settings.OLLAMA_CHAT_MODEL,
                     "messages": full_messages,
                     "tools": TOOLS,
                     "stream": True,
                 },
                 stream=True,
-                timeout=120,
             )
-            stream_resp.raise_for_status()
             for line in stream_resp.iter_lines():
                 if not line:
                     continue
@@ -624,7 +651,7 @@ def chat_stream(messages: list[dict]):
             return
 
         # Tool round — execute tools and loop
-        full_messages.append(assistant_msg)
+        full_messages.append(_clean_assistant_msg(assistant_msg))
         for tc in tool_calls:
             fn = tc["function"]
             tool_name = fn["name"]
